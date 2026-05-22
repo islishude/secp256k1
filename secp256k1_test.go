@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/islishude/secp256k1/internal/field"
 	"github.com/islishude/secp256k1/internal/scalar"
 )
 
@@ -193,6 +194,330 @@ func TestPrivateKeyBounds(t *testing.T) {
 	if _, err := NewPrivateKey(scalar.Order); err == nil {
 		t.Fatal("accepted order as private key")
 	}
+}
+
+func TestGenerateKeyRejectsInvalidCandidates(t *testing.T) {
+	var valid [PrivateKeySize]byte
+	valid[31] = 1
+
+	input := make([]byte, 0, 3*PrivateKeySize)
+	input = append(input, make([]byte, PrivateKeySize)...)
+	input = append(input, scalar.Order[:]...)
+	input = append(input, valid[:]...)
+
+	priv, err := GenerateKey(bytes.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := priv.Bytes(); got != valid {
+		t.Fatalf("GenerateKey returned %x, want %x", got, valid)
+	}
+}
+
+func TestGenerateKeyReadError(t *testing.T) {
+	if _, err := GenerateKey(bytes.NewReader(nil)); err == nil {
+		t.Fatal("GenerateKey succeeded with an empty reader")
+	}
+}
+
+func TestPrivateKeyBytesRoundTrip(t *testing.T) {
+	keyBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
+	priv, err := NewPrivateKey(keyBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := priv.Bytes()
+	if got != keyBytes {
+		t.Fatalf("PrivateKey.Bytes() = %x, want %x", got, keyBytes)
+	}
+	reparsed, err := NewPrivateKey(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !priv.Public().Equal(reparsed.Public()) {
+		t.Fatal("reparsed private key derived a different public key")
+	}
+}
+
+func TestSignatureRejectsInvalidScalars(t *testing.T) {
+	privBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
+	priv, err := NewPrivateKey(privBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub := priv.Public()
+	digest := sha256.Sum256([]byte("secp256k1 invalid signature scalars"))
+	sig, err := priv.SignDigest(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if VerifyDigest(nil, digest, sig) {
+		t.Fatal("nil public key verified")
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*[RecoverableSignatureSize]byte)
+	}{
+		{
+			name: "zero r",
+			mutate: func(sig *[RecoverableSignatureSize]byte) {
+				clear(sig[:32])
+			},
+		},
+		{
+			name: "zero s",
+			mutate: func(sig *[RecoverableSignatureSize]byte) {
+				clear(sig[32:64])
+			},
+		},
+		{
+			name: "r equals order",
+			mutate: func(sig *[RecoverableSignatureSize]byte) {
+				copy(sig[:32], scalar.Order[:])
+			},
+		},
+		{
+			name: "s equals order",
+			mutate: func(sig *[RecoverableSignatureSize]byte) {
+				copy(sig[32:64], scalar.Order[:])
+			},
+		},
+		{
+			name: "recid out of range",
+			mutate: func(sig *[RecoverableSignatureSize]byte) {
+				sig[recoverableSignatureRecIDAt] = 4
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			badSig := sig
+			tc.mutate(&badSig)
+			if VerifyDigest(pub, digest, badSig) {
+				t.Fatal("invalid signature verified")
+			}
+			if _, err := RecoverDigest(digest, badSig); err == nil {
+				t.Fatal("invalid signature recovered")
+			}
+		})
+	}
+}
+
+func TestRecoverDigestRejectsOverflowXCoordinate(t *testing.T) {
+	pMinusOrder := new(big.Int).Sub(new(big.Int).Set(bigP), new(big.Int).SetBytes(scalar.Order[:]))
+	rBytes := bigTo32(pMinusOrder)
+
+	var digest [32]byte
+	var sig [RecoverableSignatureSize]byte
+	copy(sig[:32], rBytes[:])
+	sig[63] = 1
+	sig[recoverableSignatureRecIDAt] = 2
+
+	if _, err := RecoverDigest(digest, sig); err == nil {
+		t.Fatal("recovered signature with x-coordinate equal to field modulus")
+	}
+}
+
+func TestParsePublicKeyRejectsInvalidEncodings(t *testing.T) {
+	compressedBadPrefix := make([]byte, PublicKeyCompressedSize)
+	compressedBadPrefix[0] = 0x05
+
+	compressedXModulus := make([]byte, PublicKeyCompressedSize)
+	compressedXModulus[0] = 0x02
+	copy(compressedXModulus[1:], field.Modulus[:])
+
+	uncompressedBadPrefix := make([]byte, PublicKeyUncompressedSize)
+	uncompressedBadPrefix[0] = 0x05
+
+	uncompressedXModulus := make([]byte, PublicKeyUncompressedSize)
+	uncompressedXModulus[0] = 0x04
+	copy(uncompressedXModulus[1:33], field.Modulus[:])
+	copy(uncompressedXModulus[33:], gyBytes[:])
+
+	uncompressedYModulus := make([]byte, PublicKeyUncompressedSize)
+	uncompressedYModulus[0] = 0x04
+	copy(uncompressedYModulus[1:33], gxBytes[:])
+	copy(uncompressedYModulus[33:], field.Modulus[:])
+
+	uncompressedOffCurve := make([]byte, PublicKeyUncompressedSize)
+	uncompressedOffCurve[0] = 0x04
+	copy(uncompressedOffCurve[1:33], gxBytes[:])
+
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{name: "empty", in: nil},
+		{name: "short compressed", in: []byte{0x02}},
+		{name: "bad compressed prefix", in: compressedBadPrefix},
+		{name: "compressed x equals modulus", in: compressedXModulus},
+		{name: "bad uncompressed prefix", in: uncompressedBadPrefix},
+		{name: "uncompressed x equals modulus", in: uncompressedXModulus},
+		{name: "uncompressed y equals modulus", in: uncompressedYModulus},
+		{name: "uncompressed off curve", in: uncompressedOffCurve},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if pub, err := ParsePublicKey(tc.in); err == nil {
+				t.Fatalf("ParsePublicKey(%x) = %#v, want error", tc.in, pub)
+			}
+		})
+	}
+}
+
+func FuzzParsePublicKey(f *testing.F) {
+	var one [32]byte
+	one[31] = 1
+	priv, err := NewPrivateKey(one)
+	if err != nil {
+		f.Fatal(err)
+	}
+	pub := priv.Public()
+	compressed := pub.BytesCompressed()
+	uncompressed := pub.BytesUncompressed()
+
+	f.Add(compressed[:])
+	f.Add(uncompressed[:])
+	f.Add([]byte{})
+	f.Add([]byte{0x02})
+	f.Add(append([]byte{0x02}, make([]byte, 32)...))
+	f.Add(append([]byte{0x04}, make([]byte, 64)...))
+
+	f.Fuzz(func(t *testing.T, encoded []byte) {
+		pub, err := ParsePublicKey(encoded)
+		if err != nil {
+			return
+		}
+
+		compressed := pub.BytesCompressed()
+		parsedCompressed, err := ParsePublicKey(compressed[:])
+		if err != nil {
+			t.Fatalf("compressed encoding did not parse: %v", err)
+		}
+		if !pub.Equal(parsedCompressed) {
+			t.Fatalf("compressed round trip mismatch for %x", encoded)
+		}
+
+		uncompressed := pub.BytesUncompressed()
+		parsedUncompressed, err := ParsePublicKey(uncompressed[:])
+		if err != nil {
+			t.Fatalf("uncompressed encoding did not parse: %v", err)
+		}
+		if !pub.Equal(parsedUncompressed) {
+			t.Fatalf("uncompressed round trip mismatch for %x", encoded)
+		}
+		if !parsedCompressed.Equal(parsedUncompressed) {
+			t.Fatalf("compressed/uncompressed mismatch for %x", encoded)
+		}
+	})
+}
+
+func FuzzSignVerifyRecoverDigest(f *testing.F) {
+	addSignVerifySeed(f, must32("01"), sha256.Sum256([]byte("fuzz secp256k1 one")))
+	addSignVerifySeed(f, must32("2a"), sha256.Sum256([]byte("fuzz secp256k1 forty-two")))
+	addSignVerifySeed(f, must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8"), sha256.Sum256([]byte("fuzz secp256k1 known key")))
+	addSignVerifySeed(f, [32]byte{}, sha256.Sum256([]byte("fuzz secp256k1 zero key")))
+	addSignVerifySeed(f, scalar.Order, sha256.Sum256([]byte("fuzz secp256k1 order key")))
+
+	f.Fuzz(func(t *testing.T, input []byte) {
+		if len(input) < PrivateKeySize+32 {
+			return
+		}
+
+		var keyBytes, digest [32]byte
+		copy(keyBytes[:], input[:PrivateKeySize])
+		copy(digest[:], input[PrivateKeySize:PrivateKeySize+32])
+
+		priv, err := NewPrivateKey(keyBytes)
+		if err != nil {
+			return
+		}
+		pub := priv.Public()
+
+		sig1, err := priv.SignDigest(digest)
+		if err != nil {
+			t.Fatalf("SignDigest failed: %v", err)
+		}
+		sig2, err := priv.SignDigest(digest)
+		if err != nil {
+			t.Fatalf("second SignDigest failed: %v", err)
+		}
+		if sig1 != sig2 {
+			t.Fatalf("signature is not deterministic\n first %x\nsecond %x", sig1, sig2)
+		}
+		if !VerifyDigest(pub, digest, sig1) {
+			t.Fatalf("signature did not verify\nkey %x\ndigest %x\nsig %x", keyBytes, digest, sig1)
+		}
+
+		recovered, err := RecoverDigest(digest, sig1)
+		if err != nil {
+			t.Fatalf("RecoverDigest failed: %v\nkey %x\ndigest %x\nsig %x", err, keyBytes, digest, sig1)
+		}
+		if !recovered.Equal(pub) {
+			t.Fatalf("recovered public key mismatch\nkey %x\ndigest %x\nsig %x", keyBytes, digest, sig1)
+		}
+
+		var sBytes [32]byte
+		copy(sBytes[:], sig1[32:64])
+		if bytes.Compare(sBytes[:], scalar.HalfOrder[:]) > 0 {
+			t.Fatalf("signature is not low-S: %x", sBytes)
+		}
+	})
+}
+
+func FuzzRecoverDigest(f *testing.F) {
+	privBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
+	priv, err := NewPrivateKey(privBytes)
+	if err != nil {
+		f.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("fuzz secp256k1 recover"))
+	sig, err := priv.SignDigest(digest)
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	f.Add(digest[:], sig[:])
+	f.Add(make([]byte, 32), make([]byte, RecoverableSignatureSize))
+	f.Add([]byte{}, []byte{})
+
+	f.Fuzz(func(t *testing.T, digestBytes, sigBytes []byte) {
+		if len(digestBytes) != 32 || len(sigBytes) != RecoverableSignatureSize {
+			return
+		}
+
+		var digest [32]byte
+		var sig [RecoverableSignatureSize]byte
+		copy(digest[:], digestBytes)
+		copy(sig[:], sigBytes)
+
+		recovered, err := RecoverDigest(digest, sig)
+		if err != nil {
+			return
+		}
+		if !VerifyDigest(recovered, digest, sig) {
+			t.Fatalf("recovered key does not verify signature\ndigest %x\nsig %x", digest, sig)
+		}
+
+		compressed := recovered.BytesCompressed()
+		parsed, err := ParsePublicKey(compressed[:])
+		if err != nil {
+			t.Fatalf("recovered key compressed encoding did not parse: %v", err)
+		}
+		if !recovered.Equal(parsed) {
+			t.Fatalf("recovered key compressed round trip mismatch")
+		}
+	})
+}
+
+func addSignVerifySeed(f *testing.F, key [PrivateKeySize]byte, digest [32]byte) {
+	seed := make([]byte, PrivateKeySize+32)
+	copy(seed[:PrivateKeySize], key[:])
+	copy(seed[PrivateKeySize:], digest[:])
+	f.Add(seed)
 }
 
 func must32(s string) [32]byte {
