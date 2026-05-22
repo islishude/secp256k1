@@ -33,25 +33,24 @@ go test -bench=. -benchmem -count=5
 
 | Implementation | Run 1 ns/op | Run 2 ns/op | Run 3 ns/op | Run 4 ns/op | Run 5 ns/op | Avg ns/op | B/op | allocs/op |
 | -------------- | ----------: | ----------: | ----------: | ----------: | ----------: | --------: | ---: | --------: |
-| Local          |       27152 |       26691 |       26586 |       26786 |       26797 |     26802 |    0 |         0 |
-| Decred         |       32722 |       32728 |       32707 |       32678 |       32803 |     32728 | 1512 |        28 |
-| Geth           |       15840 |       15703 |       15776 |       15714 |       15846 |     15776 |  164 |         3 |
+| Local          |       27222 |       26844 |       26713 |       26814 |       26797 |     26878 |    0 |         0 |
+| Decred         |       32887 |       32741 |       32759 |       32648 |       32887 |     32784 | 1512 |        28 |
+| Geth           |       15838 |       15809 |       15764 |       15921 |       15857 |     15838 |  164 |         3 |
 
 ## Verify Results
 
 | Implementation | Run 1 ns/op | Run 2 ns/op | Run 3 ns/op | Run 4 ns/op | Run 5 ns/op | Avg ns/op | B/op | allocs/op |
 | -------------- | ----------: | ----------: | ----------: | ----------: | ----------: | --------: | ---: | --------: |
-| Local          |       67147 |       67519 |       67307 |       67445 |       67474 |     67378 |    0 |         0 |
-| Decred         |      108785 |      108598 |      108569 |      108438 |      108867 |    108651 | 1289 |        23 |
-| Geth           |       18447 |       18545 |       18239 |       18391 |       18408 |     18406 |    0 |         0 |
+| Local          |       67028 |       67491 |       66972 |       67529 |       68134 |     67431 |    0 |         0 |
+| Decred         |      108460 |      108804 |      108626 |      108597 |      108497 |    108597 | 1289 |        23 |
+| Geth           |       18628 |       18568 |       18448 |       18885 |       18588 |     18623 |    0 |         0 |
 
 ## Conclusions
 
-- Geth is the fastest implementation in both operations on this machine. It is about 1.7x faster than local signing and about 3.7x faster than local verification.
+- Geth is the fastest implementation in both operations on this machine. It is about 1.7x faster than local signing and about 3.6x faster than local verification.
 - Local signing is faster than Decred signing while using zero allocations. Decred allocates 1512 B/op across 28 allocations.
 - Local verification is faster than Decred verification and uses zero allocations, but remains significantly slower than geth's CGO-backed implementation.
 - The local implementation has zero benchmark-time allocations for both sign and verify.
-- Compared with the previous run, local signing and verification both improved substantially, especially verification.
 
 ## Raw Output
 
@@ -60,36 +59,36 @@ goos: darwin
 goarch: arm64
 pkg: github.com/islishude/secp256k1/benchmark
 cpu: Apple M3 Max
-BenchmarkLocalSign-16              42981             27152 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalSign-16              45015             26691 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalSign-16              44869             26586 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalSign-16              44635             26786 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalSign-16              44836             26797 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalVerify-16            17811             67147 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalVerify-16            17611             67519 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalVerify-16            17854             67307 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalVerify-16            17751             67445 ns/op               0 B/op          0 allocs/op
-BenchmarkLocalVerify-16            17752             67474 ns/op               0 B/op          0 allocs/op
-BenchmarkDecredSign-16             36644             32722 ns/op            1512 B/op         28 allocs/op
-BenchmarkDecredSign-16             36632             32728 ns/op            1512 B/op         28 allocs/op
-BenchmarkDecredSign-16             36578             32707 ns/op            1512 B/op         28 allocs/op
-BenchmarkDecredSign-16             36588             32678 ns/op            1512 B/op         28 allocs/op
-BenchmarkDecredSign-16             36465             32803 ns/op            1512 B/op         28 allocs/op
-BenchmarkDecredVerify-16           10000            108785 ns/op            1289 B/op         23 allocs/op
-BenchmarkDecredVerify-16           10000            108598 ns/op            1289 B/op         23 allocs/op
-BenchmarkDecredVerify-16           10000            108569 ns/op            1289 B/op         23 allocs/op
-BenchmarkDecredVerify-16           10000            108438 ns/op            1289 B/op         23 allocs/op
-BenchmarkDecredVerify-16           10000            108867 ns/op            1289 B/op         23 allocs/op
-BenchmarkGethSign-16               75270             15840 ns/op             164 B/op          3 allocs/op
-BenchmarkGethSign-16               75324             15703 ns/op             164 B/op          3 allocs/op
-BenchmarkGethSign-16               74751             15776 ns/op             164 B/op          3 allocs/op
-BenchmarkGethSign-16               76370             15714 ns/op             164 B/op          3 allocs/op
-BenchmarkGethSign-16               76173             15846 ns/op             164 B/op          3 allocs/op
-BenchmarkGethVerify-16             64726             18447 ns/op               0 B/op          0 allocs/op
-BenchmarkGethVerify-16             65821             18545 ns/op               0 B/op          0 allocs/op
-BenchmarkGethVerify-16             66280             18239 ns/op               0 B/op          0 allocs/op
-BenchmarkGethVerify-16             65541             18391 ns/op               0 B/op          0 allocs/op
-BenchmarkGethVerify-16             65088             18408 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalSign-16              43176             27222 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalSign-16              44810             26844 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalSign-16              44758             26713 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalSign-16              44722             26814 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalSign-16              45027             26797 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalVerify-16            17936             67028 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalVerify-16            17845             67491 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalVerify-16            17936             66972 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalVerify-16            17800             67529 ns/op               0 B/op          0 allocs/op
+BenchmarkLocalVerify-16            17614             68134 ns/op               0 B/op          0 allocs/op
+BenchmarkDecredSign-16             36106             32887 ns/op            1512 B/op         28 allocs/op
+BenchmarkDecredSign-16             36445             32741 ns/op            1512 B/op         28 allocs/op
+BenchmarkDecredSign-16             36556             32759 ns/op            1512 B/op         28 allocs/op
+BenchmarkDecredSign-16             36621             32648 ns/op            1512 B/op         28 allocs/op
+BenchmarkDecredSign-16             36646             32887 ns/op            1512 B/op         28 allocs/op
+BenchmarkDecredVerify-16           10000            108460 ns/op            1289 B/op         23 allocs/op
+BenchmarkDecredVerify-16           10000            108804 ns/op            1289 B/op         23 allocs/op
+BenchmarkDecredVerify-16           10000            108626 ns/op            1289 B/op         23 allocs/op
+BenchmarkDecredVerify-16           10000            108597 ns/op            1289 B/op         23 allocs/op
+BenchmarkDecredVerify-16           10000            108497 ns/op            1289 B/op         23 allocs/op
+BenchmarkGethSign-16               74712             15838 ns/op             164 B/op          3 allocs/op
+BenchmarkGethSign-16               76188             15809 ns/op             164 B/op          3 allocs/op
+BenchmarkGethSign-16               75249             15764 ns/op             164 B/op          3 allocs/op
+BenchmarkGethSign-16               74839             15921 ns/op             164 B/op          3 allocs/op
+BenchmarkGethSign-16               75200             15857 ns/op             164 B/op          3 allocs/op
+BenchmarkGethVerify-16             63654             18628 ns/op               0 B/op          0 allocs/op
+BenchmarkGethVerify-16             65186             18568 ns/op               0 B/op          0 allocs/op
+BenchmarkGethVerify-16             64012             18448 ns/op               0 B/op          0 allocs/op
+BenchmarkGethVerify-16             63954             18885 ns/op               0 B/op          0 allocs/op
+BenchmarkGethVerify-16             66043             18588 ns/op               0 B/op          0 allocs/op
 PASS
-ok      github.com/islishude/secp256k1/benchmark        39.520s
+ok      github.com/islishude/secp256k1/benchmark        35.936s
 ```

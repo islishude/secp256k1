@@ -113,8 +113,7 @@ func BenchmarkLocalVerify(b *testing.B) {
 	digest := benchFixture.digest
 	signature := benchFixture.localSignature
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		verifySink = localsecp256k1.VerifyDigest(publicKey, digest, signature)
 	}
 	if !verifySink {
