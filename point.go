@@ -520,7 +520,7 @@ func subSmall(words *[4]uint64, v uint64) {
 }
 
 func shr1(words *[4]uint64) {
-	for i := 0; i < len(words)-1; i++ {
+	for i := range len(words) - 1 {
 		words[i] = (words[i] >> 1) | (words[i+1] << 63)
 	}
 	words[len(words)-1] >>= 1
@@ -544,12 +544,6 @@ func equalByte(x, y byte) uint64 {
 	v |= v >> 2
 	v |= v >> 1
 	return (v ^ 1) & 1
-}
-
-func pointFromPublicKey(pub *PublicKey) point {
-	var p point
-	p.setAffine(&pub.x, &pub.y)
-	return p
 }
 
 func isOnCurve(x, y *field.Element) bool {
