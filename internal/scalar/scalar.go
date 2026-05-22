@@ -67,8 +67,7 @@ func (z *Element) Set(x *Element) *Element {
 
 // SetZero assigns z = 0.
 func (z *Element) SetZero() *Element {
-	var in fiat.NonMontgomeryDomainFieldElement
-	fiat.ToMontgomery(&z.x, &in)
+	z.x = fiat.MontgomeryDomainFieldElement{}
 	return z
 }
 
@@ -133,12 +132,17 @@ func (z *Element) IsZero() bool {
 // IsHigh reports whether z is greater than n/2.
 func (z *Element) IsHigh() bool {
 	b := z.Bytes()
-	return greaterThan(&b, &HalfOrder)
+	return IsHighBytes(&b)
 }
 
 // Equal reports whether z and x are the same scalar.
 func (z *Element) Equal(x *Element) bool {
-	return z.Bytes() == x.Bytes()
+	return z.x == x.x
+}
+
+// IsHighBytes reports whether b is greater than n/2.
+func IsHighBytes(b *[Size]byte) bool {
+	return greaterThan(b, &HalfOrder)
 }
 
 // Add assigns z = x + y mod n.

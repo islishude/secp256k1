@@ -38,8 +38,10 @@ type PrivateKey struct {
 // PublicKey is a secp256k1 verification key represented by an affine curve
 // point.
 type PublicKey struct {
-	x field.Element
-	y field.Element
+	x         field.Element
+	y         field.Element
+	wnafTable [wnafTableSize]affinePoint
+	valid     bool
 }
 
 // GenerateKey reads random bytes until it produces a valid non-zero private
@@ -142,16 +144,17 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 			recid |= 1
 		}
 		recid |= xOverflow << 1
-		if s.IsHigh() {
+		sBytes := s.Bytes()
+		if scalar.IsHighBytes(&sBytes) {
 			// Low-S normalization replaces s with n-s. That is equivalent to
 			// using -R, so the y-parity bit must be flipped for recovery.
 			s.Neg(&s)
 			recid ^= 1
+			sBytes = s.Bytes()
 		}
 
 		var sig [RecoverableSignatureSize]byte
 		copy(sig[:32], rBytes[:])
-		sBytes := s.Bytes()
 		copy(sig[32:64], sBytes[:])
 		sig[recoverableSignatureRecIDAt] = recid
 		return sig, nil
@@ -176,8 +179,7 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 	u2.Mul(&r, &w)
 
 	// ECDSA verification checks that x((e/s)G + (r/s)Q) mod n equals r.
-	pubPoint := pointFromPublicKey(pub)
-	sum := doubleScalarBaseMult(&u1, &pubPoint, &u2)
+	sum := doubleScalarBaseMultPrecomputed(&u1, &pub.wnafTable, &u2)
 	if sum.isInfinity() {
 		return false
 	}
@@ -283,7 +285,7 @@ func ParsePublicKey(b []byte) (*PublicKey, error) {
 		if !isOnCurve(&x, &y) {
 			return nil, errInvalidPublicKey
 		}
-		return &PublicKey{x: x, y: y}, nil
+		return newPublicKey(&x, &y), nil
 	case PublicKeyUncompressedSize:
 		if b[0] != 0x04 {
 			return nil, errInvalidPublicKey
@@ -295,7 +297,7 @@ func ParsePublicKey(b []byte) (*PublicKey, error) {
 		if !x.SetBytes(&xb) || !y.SetBytes(&yb) || !isOnCurve(&x, &y) {
 			return nil, errInvalidPublicKey
 		}
-		return &PublicKey{x: x, y: y}, nil
+		return newPublicKey(&x, &y), nil
 	default:
 		return nil, errInvalidPublicKey
 	}
@@ -335,7 +337,7 @@ func (p *PublicKey) Equal(q *PublicKey) bool {
 }
 
 func (p *PublicKey) isValid() bool {
-	return isOnCurve(&p.x, &p.y)
+	return p.valid
 }
 
 func publicKeyFromPoint(p *point) *PublicKey {
@@ -343,7 +345,18 @@ func publicKeyFromPoint(p *point) *PublicKey {
 	if !ok {
 		return nil
 	}
-	return &PublicKey{x: x, y: y}
+	return newPublicKey(&x, &y)
+}
+
+func newPublicKey(x, y *field.Element) *PublicKey {
+	var p point
+	p.setAffine(x, y)
+	return &PublicKey{
+		x:         *x,
+		y:         *y,
+		wnafTable: newAffineOddTable(&p),
+		valid:     true,
+	}
 }
 
 func parseSignatureScalars(sig [RecoverableSignatureSize]byte) (scalar.Element, scalar.Element, bool) {

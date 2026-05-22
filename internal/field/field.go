@@ -38,8 +38,7 @@ func (z *Element) Set(x *Element) *Element {
 
 // SetZero assigns z = 0.
 func (z *Element) SetZero() *Element {
-	var in fiat.NonMontgomeryDomainFieldElement
-	fiat.ToMontgomery(&z.x, &in)
+	z.x = fiat.MontgomeryDomainFieldElement{}
 	return z
 }
 
@@ -99,7 +98,7 @@ func (z *Element) IsOdd() bool {
 
 // Equal reports whether z and x are the same field element.
 func (z *Element) Equal(x *Element) bool {
-	return z.Bytes() == x.Bytes()
+	return z.x == x.x
 }
 
 // Select assigns z = x when choice == 0 and z = y when choice == 1.

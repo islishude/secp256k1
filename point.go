@@ -1,8 +1,15 @@
 package secp256k1
 
 import (
+	"encoding/binary"
+
 	"github.com/islishude/secp256k1/internal/field"
 	"github.com/islishude/secp256k1/internal/scalar"
+)
+
+const (
+	wnafWindow    = 5
+	wnafTableSize = 1 << (wnafWindow - 2)
 )
 
 var (
@@ -18,14 +25,10 @@ var (
 		0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19,
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
-	generator      = newGeneratorPoint()
-	generatorTable = newGeneratorTable()
+	generator            = newGeneratorPoint()
+	generatorAffineTable = newGeneratorAffineTable()
+	generatorWNAFTable   = newAffineOddTable(&generator)
 )
-
-// pointTable stores 4-bit windows of the generator. Entry [i][j] is
-// j * (16^i * G), letting base-point multiplication consume one nibble at a
-// time.
-type pointTable [64][16]point
 
 // point is a Jacobian-coordinate curve point. The point at infinity is encoded
 // with z = 0.
@@ -33,6 +36,12 @@ type point struct {
 	x field.Element
 	y field.Element
 	z field.Element
+}
+
+type affinePoint struct {
+	x        field.Element
+	y        field.Element
+	infinity uint64
 }
 
 func newGeneratorPoint() point {
@@ -45,15 +54,22 @@ func newGeneratorPoint() point {
 	return g
 }
 
-func newGeneratorTable() pointTable {
-	var table pointTable
+func newGeneratorAffineTable() [64][16]affinePoint {
+	var table [64][16]affinePoint
 	base := generator
 	for i := range table {
-		table[i][0].setInfinity()
-		table[i][1].set(&base)
-		for j := 2; j < len(table[i]); j++ {
-			table[i][j].add(&table[i][j-1], &base)
+		table[i][0].infinity = 1
+
+		var points [15]point
+		points[0].set(&base)
+		for j := 1; j < len(points); j++ {
+			points[j].add(&points[j-1], &base)
 		}
+		affine := batchNormalize15(points)
+		for j := 1; j < len(table[i]); j++ {
+			table[i][j] = affine[j-1]
+		}
+
 		// Move to the next 4-bit window: base *= 16.
 		for range 4 {
 			base.double(&base)
@@ -264,6 +280,13 @@ func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
 	return p
 }
 
+func (p *point) addMixed(p1 *point, p2 *affinePoint) *point {
+	if p2.infinity == 1 {
+		return p.set(p1)
+	}
+	return p.addAffine(p1, &p2.x, &p2.y)
+}
+
 func (p *point) neg(q *point) *point {
 	p.x.Set(&q.x)
 	p.y.Neg(&q.y)
@@ -278,20 +301,27 @@ func (p *point) selectPoint(x, y *point, choice uint64) *point {
 	return p
 }
 
+func (p *affinePoint) selectPoint(x, y *affinePoint, choice uint64) *affinePoint {
+	mask := uint64(0) - (choice & 1)
+	p.x.Select(&x.x, &y.x, choice)
+	p.y.Select(&x.y, &y.y, choice)
+	p.infinity = (x.infinity &^ mask) | (y.infinity & mask)
+	return p
+}
+
 func scalarBaseMult(k *scalar.Element) point {
 	b := k.Bytes()
 	var r point
 	r.setInfinity()
-	for i := range generatorTable {
+	for i := range generatorAffineTable {
 		digit := nibbleAt(&b, i)
-		var selected point
-		selected.setInfinity()
-		for j := range generatorTable[i] {
-			// Scan the whole window table and conditionally select to avoid
-			// branching on the secret scalar nibble.
-			selected.selectPoint(&selected, &generatorTable[i][j], equalByte(digit, byte(j)))
+		selected := generatorAffineTable[i][0]
+		for j := 1; j < len(generatorAffineTable[i]); j++ {
+			// Scan the whole window table and conditionally select instead of
+			// indexing by the secret scalar nibble.
+			selected.selectPoint(&selected, &generatorAffineTable[i][j], equalByte(digit, byte(j)))
 		}
-		r.add(&r, &selected)
+		r.addMixed(&r, &selected)
 	}
 	return r
 }
@@ -327,38 +357,173 @@ func scalarMultAffine(p *point, k *[32]byte) point {
 }
 
 func doubleScalarBaseMult(k1 *scalar.Element, p2 *point, k2 *scalar.Element) point {
+	p2Table := newAffineOddTable(p2)
+	return doubleScalarBaseMultPrecomputed(k1, &p2Table, k2)
+}
+
+func doubleScalarBaseMultPrecomputed(k1 *scalar.Element, p2Table *[wnafTableSize]affinePoint, k2 *scalar.Element) point {
 	k1Bytes := k1.Bytes()
 	k2Bytes := k2.Bytes()
-
-	// Precompute G + P once so each bit position needs at most one addition.
-	var gPlusP2 point
-	gPlusP2.add(&generator, p2)
-
-	var gPlusP2X, gPlusP2Y field.Element
-	gPlusP2IsInfinity := gPlusP2.isInfinity()
-	if !gPlusP2IsInfinity {
-		gPlusP2X, gPlusP2Y, _ = gPlusP2.affine()
-	}
+	k1NAF := wnaf(&k1Bytes)
+	k2NAF := wnaf(&k2Bytes)
 
 	var r point
 	r.setInfinity()
-	for i := range 256 {
+	for i := len(k1NAF) - 1; i >= 0; i-- {
 		r.double(&r)
-
-		k1Bit := bitAt(&k1Bytes, i)
-		k2Bit := bitAt(&k2Bytes, i)
-		switch {
-		case k1Bit == 1 && k2Bit == 1:
-			if !gPlusP2IsInfinity {
-				r.addAffine(&r, &gPlusP2X, &gPlusP2Y)
-			}
-		case k1Bit == 1:
-			r.addAffine(&r, &generator.x, &generator.y)
-		case k2Bit == 1:
-			r.addAffine(&r, &p2.x, &p2.y)
-		}
+		addWNAFPoint(&r, &generatorWNAFTable, k1NAF[i])
+		addWNAFPoint(&r, p2Table, k2NAF[i])
 	}
 	return r
+}
+
+func newAffineOddTable(p *point) [wnafTableSize]affinePoint {
+	var points [wnafTableSize]point
+	points[0].set(p)
+	if len(points) > 1 {
+		var twoP point
+		twoP.double(p)
+		for i := 1; i < len(points); i++ {
+			points[i].add(&points[i-1], &twoP)
+		}
+	}
+	return batchNormalize(points)
+}
+
+func batchNormalize(points [wnafTableSize]point) [wnafTableSize]affinePoint {
+	var prefixes [wnafTableSize]field.Element
+	var acc field.Element
+	acc.SetOne()
+	for i := range points {
+		prefixes[i].Set(&acc)
+		acc.Mul(&acc, &points[i].z)
+	}
+
+	var accInv field.Element
+	accInv.Inv(&acc)
+
+	var out [wnafTableSize]affinePoint
+	for i := len(points) - 1; i >= 0; i-- {
+		var zInv, z2, z3 field.Element
+		zInv.Mul(&accInv, &prefixes[i])
+		accInv.Mul(&accInv, &points[i].z)
+
+		z2.Square(&zInv)
+		z3.Mul(&z2, &zInv)
+		out[i].x.Mul(&points[i].x, &z2)
+		out[i].y.Mul(&points[i].y, &z3)
+	}
+	return out
+}
+
+func batchNormalize15(points [15]point) [15]affinePoint {
+	var prefixes [15]field.Element
+	var acc field.Element
+	acc.SetOne()
+	for i := range points {
+		prefixes[i].Set(&acc)
+		acc.Mul(&acc, &points[i].z)
+	}
+
+	var accInv field.Element
+	accInv.Inv(&acc)
+
+	var out [15]affinePoint
+	for i := len(points) - 1; i >= 0; i-- {
+		var zInv, z2, z3 field.Element
+		zInv.Mul(&accInv, &prefixes[i])
+		accInv.Mul(&accInv, &points[i].z)
+
+		z2.Square(&zInv)
+		z3.Mul(&z2, &zInv)
+		out[i].x.Mul(&points[i].x, &z2)
+		out[i].y.Mul(&points[i].y, &z3)
+	}
+	return out
+}
+
+func addWNAFPoint(r *point, table *[wnafTableSize]affinePoint, digit int8) {
+	if digit == 0 {
+		return
+	}
+	if digit > 0 {
+		entry := &table[(digit-1)/2]
+		r.addAffine(r, &entry.x, &entry.y)
+		return
+	}
+
+	entry := &table[(-digit-1)/2]
+	var y field.Element
+	y.Neg(&entry.y)
+	r.addAffine(r, &entry.x, &y)
+}
+
+func wnaf(k *[32]byte) [257]int8 {
+	words := scalarWords(k)
+	var out [257]int8
+	for i := 0; !isZeroWords(&words); i++ {
+		if words[0]&1 == 1 {
+			digit := int(words[0] & ((1 << wnafWindow) - 1))
+			if digit > 1<<(wnafWindow-1) {
+				digit -= 1 << wnafWindow
+			}
+			out[i] = int8(digit)
+			if digit > 0 {
+				subSmall(&words, uint64(digit))
+			} else {
+				addSmall(&words, uint64(-digit))
+			}
+		}
+		shr1(&words)
+	}
+	return out
+}
+
+func scalarWords(k *[32]byte) [4]uint64 {
+	return [4]uint64{
+		binary.BigEndian.Uint64(k[24:32]),
+		binary.BigEndian.Uint64(k[16:24]),
+		binary.BigEndian.Uint64(k[8:16]),
+		binary.BigEndian.Uint64(k[0:8]),
+	}
+}
+
+func isZeroWords(words *[4]uint64) bool {
+	return words[0]|words[1]|words[2]|words[3] == 0
+}
+
+func addSmall(words *[4]uint64, v uint64) {
+	words[0] += v
+	if words[0] >= v {
+		return
+	}
+	for i := 1; i < len(words); i++ {
+		words[i]++
+		if words[i] != 0 {
+			return
+		}
+	}
+}
+
+func subSmall(words *[4]uint64, v uint64) {
+	old := words[0]
+	words[0] -= v
+	if old >= v {
+		return
+	}
+	for i := 1; i < len(words); i++ {
+		words[i]--
+		if words[i] != ^uint64(0) {
+			return
+		}
+	}
+}
+
+func shr1(words *[4]uint64) {
+	for i := 0; i < len(words)-1; i++ {
+		words[i] = (words[i] >> 1) | (words[i+1] << 63)
+	}
+	words[len(words)-1] >>= 1
 }
 
 func bitAt(k *[32]byte, i int) byte {

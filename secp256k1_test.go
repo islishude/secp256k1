@@ -103,10 +103,20 @@ func TestDoubleScalarBaseMult(t *testing.T) {
 		t.Fatal("test point is infinity")
 	}
 	q.setAffine(&qx, &qy)
+	orderMinusOne := scalar.Order
+	for i := len(orderMinusOne) - 1; i >= 0; i-- {
+		if orderMinusOne[i] > 0 {
+			orderMinusOne[i]--
+			break
+		}
+		orderMinusOne[i] = 0xff
+	}
 	scalars := [][32]byte{
+		must32("00"),
 		must32("01"),
 		must32("02"),
 		must32("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
+		orderMinusOne,
 	}
 	for _, k1Bytes := range scalars {
 		for _, k2Bytes := range scalars {
@@ -253,6 +263,9 @@ func TestSignatureRejectsInvalidScalars(t *testing.T) {
 	}
 	if VerifyDigest(nil, digest, sig) {
 		t.Fatal("nil public key verified")
+	}
+	if VerifyDigest(&PublicKey{}, digest, sig) {
+		t.Fatal("zero public key verified")
 	}
 
 	tests := []struct {
