@@ -28,7 +28,7 @@ jobs:
       - run: go fix -diff ./...
       - run: go test -v -race -count=1 -cover ./...
 
-  benchmark:
+  check-benchmark:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -44,4 +44,3 @@ jobs:
       - run: go vet ./...
       - run: go fix -diff ./...
       - run: go mod tidy -diff
-      - run: go test -bench=. -benchmem -count=5

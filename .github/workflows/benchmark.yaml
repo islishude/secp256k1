@@ -1,0 +1,35 @@
+name: benchmark
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ./benchmark
+
+jobs:
+  amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - run: go test -bench=. -benchmem -count=5
+
+  arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - run: go test -bench=. -benchmem -count=5
