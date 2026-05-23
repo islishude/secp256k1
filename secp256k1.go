@@ -109,19 +109,18 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 		}
 		// ECDSA defines r as x(R) mod n. Recovery needs to know whether the
 		// original field x-coordinate was r or r+n, so keep that overflow bit.
-		rxBytes := rx.Bytes()
 		xOverflow := byte(0)
-		if !scalar.LessThanOrder(&rxBytes) {
+		if !scalar.FieldElementLessThanOrder(&rx) {
 			xOverflow = 1
 		}
-		rBytes := scalar.SetBytesModOrder(&rxBytes)
-		if scalar.IsZeroBytes(&rBytes) {
+
+		var r, rd, sum, kinv, s scalar.Element
+		r.SetFieldElementModOrder(&rx)
+		if r.IsZero() {
 			nonce.Reject()
 			continue
 		}
 
-		var r, rd, sum, kinv, s scalar.Element
-		r.SetBytesUnchecked(&rBytes)
 		rd.Mul(&r, &k.d)
 		sum.Add(e, &rd)
 		kinv.Inv(&nonceScalar)
@@ -137,18 +136,16 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 			recid |= 1
 		}
 		recid |= xOverflow << 1
-		sBytes := s.Bytes()
-		if scalar.IsHighBytes(&sBytes) {
+		if s.IsHigh() {
 			// Low-S normalization replaces s with n-s. That is equivalent to
 			// using -R, so the y-parity bit must be flipped for recovery.
 			s.Neg(&s)
 			recid ^= 1
-			sBytes = s.Bytes()
 		}
 
 		var sig [RecoverableSignatureSize]byte
-		copy(sig[:32], rBytes[:])
-		copy(sig[32:64], sBytes[:])
+		r.PutBytes((*[scalar.Size]byte)(sig[:scalar.Size]))
+		s.PutBytes((*[scalar.Size]byte)(sig[scalar.Size : 2*scalar.Size]))
 		sig[recoverableSignatureRecIDAt] = recid
 		return sig, nil
 	}

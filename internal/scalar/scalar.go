@@ -92,28 +92,18 @@ type Element struct {
 
 // LessThanOrder reports whether b is a canonical scalar encoding.
 func LessThanOrder(b *[Size]byte) bool {
-	x0 := binary.BigEndian.Uint64(b[0:8])
-	if x0 != orderLimb0 {
-		return x0 < orderLimb0
-	}
-
-	x1 := binary.BigEndian.Uint64(b[8:16])
-	if x1 != orderLimb1 {
-		return x1 < orderLimb1
-	}
-
-	x2 := binary.BigEndian.Uint64(b[16:24])
-	if x2 != orderLimb2 {
-		return x2 < orderLimb2
-	}
-
-	x3 := binary.BigEndian.Uint64(b[24:32])
-	return x3 < orderLimb3
+	return wordsLessThanOrder(bytesToWords(b))
 }
 
 // IsZeroBytes reports whether b is the all-zero scalar encoding.
 func IsZeroBytes(b *[Size]byte) bool {
 	return *b == [Size]byte{}
+}
+
+// FieldElementLessThanOrder reports whether x's canonical field value is less
+// than the secp256k1 group order.
+func FieldElementLessThanOrder(x *field.Element) bool {
+	return wordsLessThanOrder(x.NonMontgomeryWords())
 }
 
 // SetBytesModOrder reduces b modulo the group order and returns its canonical
@@ -122,44 +112,63 @@ func IsZeroBytes(b *[Size]byte) bool {
 // Since b is exactly 32 bytes and Order is close to 2^256, at most one
 // subtraction is needed.
 func SetBytesModOrder(b *[Size]byte) (out [Size]byte) {
-	x0, x1, x2, x3 := bigEndianWordsFromBytes(b)
-	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(x0, x1, x2, x3)
-	binary.BigEndian.PutUint64(out[0:8], r0)
-	binary.BigEndian.PutUint64(out[8:16], r1)
-	binary.BigEndian.PutUint64(out[16:24], r2)
-	binary.BigEndian.PutUint64(out[24:32], r3)
+	return wordsToBytes(reduceWordsModOrder(bytesToWords(b)))
+}
 
+func bytesToWords(b *[Size]byte) [4]uint64 {
+	// fiat-crypto generated code stores limbs little-endian, while the public
+	// package uses conventional big-endian byte strings.
+	return [4]uint64{
+		binary.BigEndian.Uint64(b[24:32]),
+		binary.BigEndian.Uint64(b[16:24]),
+		binary.BigEndian.Uint64(b[8:16]),
+		binary.BigEndian.Uint64(b[0:8]),
+	}
+}
+
+func wordsToBytes(words [4]uint64) (out [Size]byte) {
+	putWordsBytes(&out, words)
 	return out
 }
 
-func bigEndianWordsFromBytes(b *[Size]byte) (uint64, uint64, uint64, uint64) {
-	return binary.BigEndian.Uint64(b[0:8]),
-		binary.BigEndian.Uint64(b[8:16]),
-		binary.BigEndian.Uint64(b[16:24]),
-		binary.BigEndian.Uint64(b[24:32])
+func putWordsBytes(out *[Size]byte, words [4]uint64) {
+	binary.BigEndian.PutUint64(out[0:8], words[3])
+	binary.BigEndian.PutUint64(out[8:16], words[2])
+	binary.BigEndian.PutUint64(out[16:24], words[1])
+	binary.BigEndian.PutUint64(out[24:32], words[0])
 }
 
-func reduceBigEndianWordsModOrder(x0, x1, x2, x3 uint64) (uint64, uint64, uint64, uint64) {
+func wordsLessThanOrder(words [4]uint64) bool {
+	if words[3] != orderLimb0 {
+		return words[3] < orderLimb0
+	}
+	if words[2] != orderLimb1 {
+		return words[2] < orderLimb1
+	}
+	if words[1] != orderLimb2 {
+		return words[1] < orderLimb2
+	}
+	return words[0] < orderLimb3
+}
+
+func reduceWordsModOrder(words [4]uint64) [4]uint64 {
 	var borrow uint64
 
-	d3, borrow := bits.Sub64(x3, orderLimb3, 0)
-	d2, borrow := bits.Sub64(x2, orderLimb2, borrow)
-	d1, borrow := bits.Sub64(x1, orderLimb1, borrow)
-	d0, borrow := bits.Sub64(x0, orderLimb0, borrow)
+	d0, borrow := bits.Sub64(words[0], orderLimb3, 0)
+	d1, borrow := bits.Sub64(words[1], orderLimb2, borrow)
+	d2, borrow := bits.Sub64(words[2], orderLimb1, borrow)
+	d3, borrow := bits.Sub64(words[3], orderLimb0, borrow)
 
-	// borrow == 0: b >= Order, use d = b - Order.
-	// borrow == 1: b <  Order, use original b.
-	//
-	// mask = 0xffff...ffff when borrow == 1
-	// mask = 0x0000...0000 when borrow == 0
+	// borrow == 0: words >= Order, use d = words - Order.
+	// borrow == 1: words <  Order, use original words.
 	mask := uint64(0) - borrow
 
-	r0 := (d0 &^ mask) | (x0 & mask)
-	r1 := (d1 &^ mask) | (x1 & mask)
-	r2 := (d2 &^ mask) | (x2 & mask)
-	r3 := (d3 &^ mask) | (x3 & mask)
-
-	return r0, r1, r2, r3
+	return [4]uint64{
+		(d0 &^ mask) | (words[0] & mask),
+		(d1 &^ mask) | (words[1] & mask),
+		(d2 &^ mask) | (words[2] & mask),
+		(d3 &^ mask) | (words[3] & mask),
+	}
 }
 
 // Set assigns z = x.
@@ -204,45 +213,39 @@ func (z *Element) SetBytes(b *[Size]byte) bool {
 //
 // The caller must ensure b is less than the group order.
 func (z *Element) SetBytesUnchecked(b *[Size]byte) *Element {
-	return z.setBigEndianWordsUnchecked(bigEndianWordsFromBytes(b))
+	return z.setWordsUnchecked(bytesToWords(b))
 }
 
-// SetBytesModOrder assigns z to b reduced modulo the group order.
-func (z *Element) SetBytesModOrder(b *[Size]byte) *Element {
-	x0, x1, x2, x3 := bigEndianWordsFromBytes(b)
-	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(x0, x1, x2, x3)
-	return z.setBigEndianWordsUnchecked(r0, r1, r2, r3)
-}
-
-// SetFieldElementModOrder assigns z to x reduced modulo the group order.
-func (z *Element) SetFieldElementModOrder(x *field.Element) *Element {
-	words := x.BigEndianWords()
-	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(words[0], words[1], words[2], words[3])
-	return z.setBigEndianWordsUnchecked(r0, r1, r2, r3)
-}
-
-func (z *Element) setBigEndianWordsUnchecked(x0, x1, x2, x3 uint64) *Element {
-	var in fiat.NonMontgomeryDomainFieldElement
-	// fiat-crypto generated code stores limbs little-endian, while the public
-	// package uses big-endian byte strings.
-	in[0] = x3
-	in[1] = x2
-	in[2] = x1
-	in[3] = x0
+func (z *Element) setWordsUnchecked(words [4]uint64) *Element {
+	in := fiat.NonMontgomeryDomainFieldElement{
+		words[0], words[1], words[2], words[3],
+	}
 	fiat.ToMontgomery(&z.x, &in)
 	return z
 }
 
+// SetBytesModOrder assigns z to b reduced modulo the group order.
+func (z *Element) SetBytesModOrder(b *[Size]byte) *Element {
+	return z.setWordsUnchecked(reduceWordsModOrder(bytesToWords(b)))
+}
+
+// SetFieldElementModOrder assigns z to x reduced modulo the group order.
+func (z *Element) SetFieldElementModOrder(x *field.Element) *Element {
+	return z.setWordsUnchecked(reduceWordsModOrder(x.NonMontgomeryWords()))
+}
+
 // Bytes returns the canonical 32-byte big-endian encoding of z.
 func (z *Element) Bytes() [Size]byte {
-	var out fiat.NonMontgomeryDomainFieldElement
-	fiat.FromMontgomery(&out, &z.x)
-	var be [Size]byte
-	binary.BigEndian.PutUint64(be[0:8], out[3])
-	binary.BigEndian.PutUint64(be[8:16], out[2])
-	binary.BigEndian.PutUint64(be[16:24], out[1])
-	binary.BigEndian.PutUint64(be[24:32], out[0])
-	return be
+	var out [Size]byte
+	z.PutBytes(&out)
+	return out
+}
+
+// PutBytes writes the canonical 32-byte big-endian encoding of z to out.
+func (z *Element) PutBytes(out *[Size]byte) {
+	var words fiat.NonMontgomeryDomainFieldElement
+	fiat.FromMontgomery(&words, &z.x)
+	putWordsBytes(out, [4]uint64{words[0], words[1], words[2], words[3]})
 }
 
 // IsZero reports whether z is 0.
