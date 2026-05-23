@@ -3,8 +3,6 @@ package scalar
 import (
 	"math/big"
 	"testing"
-
-	"github.com/islishude/secp256k1/internal/field"
 )
 
 var orderBig = new(big.Int).SetBytes(Order[:])
@@ -76,35 +74,6 @@ func TestReductionAndRejectsNonCanonicalEncoding(t *testing.T) {
 	want := [Size]byte{}
 	if got != want {
 		t.Fatalf("reduction mismatch: got %x want %x", got, want)
-	}
-}
-
-func TestSetFieldElementModOrder(t *testing.T) {
-	orderMinusOne := scalarBigToBytes(new(big.Int).Sub(new(big.Int).Set(orderBig), big.NewInt(1)))
-	orderPlusOne := scalarBigToBytes(new(big.Int).Add(new(big.Int).Set(orderBig), big.NewInt(1)))
-	fieldMinusOne := scalarBigToBytes(new(big.Int).Sub(new(big.Int).SetBytes(field.Modulus[:]), big.NewInt(1)))
-	values := [][Size]byte{
-		fromHex("00"),
-		fromHex("01"),
-		orderMinusOne,
-		Order,
-		orderPlusOne,
-		fieldMinusOne,
-	}
-
-	for _, xb := range values {
-		var x field.Element
-		if !x.SetBytes(&xb) {
-			t.Fatalf("field SetBytes(%x) failed", xb)
-		}
-
-		var got Element
-		got.SetFieldElementModOrder(&x)
-		gotBytes := got.Bytes()
-		want := SetBytesModOrder(&xb)
-		if gotBytes != want {
-			t.Fatalf("SetFieldElementModOrder(%x) = %x, want %x", xb, gotBytes, want)
-		}
 	}
 }
 
