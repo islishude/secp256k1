@@ -311,13 +311,6 @@ func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
 	return p
 }
 
-func (p *point) addMixed(p1 *point, p2 *affinePoint) *point {
-	if p2.infinity == 1 {
-		return p.set(p1)
-	}
-	return p.addAffine(p1, &p2.x, &p2.y)
-}
-
 func (p *point) neg(q *point) *point {
 	p.x.Set(&q.x)
 	p.y.Neg(&q.y)

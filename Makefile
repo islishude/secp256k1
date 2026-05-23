@@ -1,5 +1,6 @@
 .PHONY: test benchmark format
 test:
+	golangci-lint run
 	go vet ./...
 	go test -v -count=1 -cover -race ./...
 
