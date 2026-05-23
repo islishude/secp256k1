@@ -177,9 +177,9 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 		return false
 	}
 	x, _, _ := sum.affine()
-	xBytes := scalar.SetBytesModOrder(new(x.Bytes()))
-	rBytes := r.Bytes()
-	return subtle.ConstantTimeCompare(xBytes[:], rBytes[:]) == 1
+	var xScalar scalar.Element
+	xScalar.SetFieldElementModOrder(&x)
+	return xScalar.Equal(&r)
 }
 
 // RecoverDigest reconstructs the public key that produced sig over digest.

@@ -98,15 +98,22 @@ func (z *Element) SetBytes(b *[Size]byte) bool {
 	return true
 }
 
-// Bytes returns the canonical 32-byte big-endian encoding of z.
-func (z *Element) Bytes() [Size]byte {
+// BigEndianWords returns the canonical non-Montgomery value as four 64-bit
+// words in big-endian order.
+func (z *Element) BigEndianWords() [4]uint64 {
 	var out fiat.NonMontgomeryDomainFieldElement
 	fiat.FromMontgomery(&out, &z.x)
+	return [4]uint64{out[3], out[2], out[1], out[0]}
+}
+
+// Bytes returns the canonical 32-byte big-endian encoding of z.
+func (z *Element) Bytes() [Size]byte {
+	words := z.BigEndianWords()
 	var be [Size]byte
-	binary.BigEndian.PutUint64(be[0:8], out[3])
-	binary.BigEndian.PutUint64(be[8:16], out[2])
-	binary.BigEndian.PutUint64(be[16:24], out[1])
-	binary.BigEndian.PutUint64(be[24:32], out[0])
+	binary.BigEndian.PutUint64(be[0:8], words[0])
+	binary.BigEndian.PutUint64(be[8:16], words[1])
+	binary.BigEndian.PutUint64(be[16:24], words[2])
+	binary.BigEndian.PutUint64(be[24:32], words[3])
 	return be
 }
 

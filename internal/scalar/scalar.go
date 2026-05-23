@@ -122,11 +122,24 @@ func IsZeroBytes(b *[Size]byte) bool {
 // Since b is exactly 32 bytes and Order is close to 2^256, at most one
 // subtraction is needed.
 func SetBytesModOrder(b *[Size]byte) (out [Size]byte) {
-	x0 := binary.BigEndian.Uint64(b[0:8])
-	x1 := binary.BigEndian.Uint64(b[8:16])
-	x2 := binary.BigEndian.Uint64(b[16:24])
-	x3 := binary.BigEndian.Uint64(b[24:32])
+	x0, x1, x2, x3 := bigEndianWordsFromBytes(b)
+	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(x0, x1, x2, x3)
+	binary.BigEndian.PutUint64(out[0:8], r0)
+	binary.BigEndian.PutUint64(out[8:16], r1)
+	binary.BigEndian.PutUint64(out[16:24], r2)
+	binary.BigEndian.PutUint64(out[24:32], r3)
 
+	return out
+}
+
+func bigEndianWordsFromBytes(b *[Size]byte) (uint64, uint64, uint64, uint64) {
+	return binary.BigEndian.Uint64(b[0:8]),
+		binary.BigEndian.Uint64(b[8:16]),
+		binary.BigEndian.Uint64(b[16:24]),
+		binary.BigEndian.Uint64(b[24:32])
+}
+
+func reduceBigEndianWordsModOrder(x0, x1, x2, x3 uint64) (uint64, uint64, uint64, uint64) {
 	var borrow uint64
 
 	d3, borrow := bits.Sub64(x3, orderLimb3, 0)
@@ -146,12 +159,7 @@ func SetBytesModOrder(b *[Size]byte) (out [Size]byte) {
 	r2 := (d2 &^ mask) | (x2 & mask)
 	r3 := (d3 &^ mask) | (x3 & mask)
 
-	binary.BigEndian.PutUint64(out[0:8], r0)
-	binary.BigEndian.PutUint64(out[8:16], r1)
-	binary.BigEndian.PutUint64(out[16:24], r2)
-	binary.BigEndian.PutUint64(out[24:32], r3)
-
-	return out
+	return r0, r1, r2, r3
 }
 
 // Set assigns z = x.
@@ -196,21 +204,32 @@ func (z *Element) SetBytes(b *[Size]byte) bool {
 //
 // The caller must ensure b is less than the group order.
 func (z *Element) SetBytesUnchecked(b *[Size]byte) *Element {
-	var in fiat.NonMontgomeryDomainFieldElement
-	// fiat-crypto generated code stores limbs little-endian, while the public
-	// package uses big-endian byte strings.
-	in[0] = binary.BigEndian.Uint64(b[24:32])
-	in[1] = binary.BigEndian.Uint64(b[16:24])
-	in[2] = binary.BigEndian.Uint64(b[8:16])
-	in[3] = binary.BigEndian.Uint64(b[0:8])
-	fiat.ToMontgomery(&z.x, &in)
-	return z
+	return z.setBigEndianWordsUnchecked(bigEndianWordsFromBytes(b))
 }
 
 // SetBytesModOrder assigns z to b reduced modulo the group order.
 func (z *Element) SetBytesModOrder(b *[Size]byte) *Element {
-	reduced := SetBytesModOrder(b)
-	z.SetBytesUnchecked(&reduced)
+	x0, x1, x2, x3 := bigEndianWordsFromBytes(b)
+	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(x0, x1, x2, x3)
+	return z.setBigEndianWordsUnchecked(r0, r1, r2, r3)
+}
+
+// SetFieldElementModOrder assigns z to x reduced modulo the group order.
+func (z *Element) SetFieldElementModOrder(x *field.Element) *Element {
+	words := x.BigEndianWords()
+	r0, r1, r2, r3 := reduceBigEndianWordsModOrder(words[0], words[1], words[2], words[3])
+	return z.setBigEndianWordsUnchecked(r0, r1, r2, r3)
+}
+
+func (z *Element) setBigEndianWordsUnchecked(x0, x1, x2, x3 uint64) *Element {
+	var in fiat.NonMontgomeryDomainFieldElement
+	// fiat-crypto generated code stores limbs little-endian, while the public
+	// package uses big-endian byte strings.
+	in[0] = x3
+	in[1] = x2
+	in[2] = x1
+	in[3] = x0
+	fiat.ToMontgomery(&z.x, &in)
 	return z
 }
 
