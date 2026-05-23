@@ -17,6 +17,13 @@ var Modulus = [Size]byte{
 	0xff, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xfc, 0x2f,
 }
 
+const (
+	ModuleLimb0 uint64 = 0xffffffffffffffff
+	ModuleLimb1 uint64 = 0xffffffffffffffff
+	ModuleLimb2 uint64 = 0xffffffffffffffff
+	ModuleLimb3 uint64 = 0xfffffffefffffc2f
+)
+
 // Element is an element of the secp256k1 base field modulo p.
 //
 // Values are stored in Montgomery form so multiplication and squaring can use
@@ -27,7 +34,23 @@ type Element struct {
 
 // LessThanModulus reports whether b is a canonical field encoding.
 func LessThanModulus(b *[Size]byte) bool {
-	return lessThan(b, &Modulus)
+	x0 := binary.BigEndian.Uint64(b[0:8])
+	if x0 != ModuleLimb0 {
+		return x0 < ModuleLimb0
+	}
+
+	x1 := binary.BigEndian.Uint64(b[8:16])
+	if x1 != ModuleLimb1 {
+		return x1 < ModuleLimb1
+	}
+
+	x2 := binary.BigEndian.Uint64(b[16:24])
+	if x2 != ModuleLimb2 {
+		return x2 < ModuleLimb2
+	}
+
+	x3 := binary.BigEndian.Uint64(b[24:32])
+	return x3 < ModuleLimb3
 }
 
 // Set assigns z = x.
@@ -64,12 +87,13 @@ func (z *Element) SetBytes(b *[Size]byte) bool {
 	if !LessThanModulus(b) {
 		return false
 	}
-	var le [Size]byte
-	// fiat-crypto generated code consumes little-endian limbs, while the public
-	// API uses conventional big-endian encodings.
-	reverseBytes(le[:], b[:])
 	var in fiat.NonMontgomeryDomainFieldElement
-	fiat.FromBytes((*[4]uint64)(&in), (*[Size]uint8)(&le))
+	// fiat-crypto generated code stores limbs little-endian, while the public
+	// API uses conventional big-endian encodings.
+	in[0] = binary.BigEndian.Uint64(b[24:32])
+	in[1] = binary.BigEndian.Uint64(b[16:24])
+	in[2] = binary.BigEndian.Uint64(b[8:16])
+	in[3] = binary.BigEndian.Uint64(b[0:8])
 	fiat.ToMontgomery(&z.x, &in)
 	return true
 }
@@ -78,10 +102,11 @@ func (z *Element) SetBytes(b *[Size]byte) bool {
 func (z *Element) Bytes() [Size]byte {
 	var out fiat.NonMontgomeryDomainFieldElement
 	fiat.FromMontgomery(&out, &z.x)
-	var le [Size]byte
-	fiat.ToBytes((*[Size]uint8)(&le), (*[4]uint64)(&out))
 	var be [Size]byte
-	reverseBytes(be[:], le[:])
+	binary.BigEndian.PutUint64(be[0:8], out[3])
+	binary.BigEndian.PutUint64(be[8:16], out[2])
+	binary.BigEndian.PutUint64(be[16:24], out[1])
+	binary.BigEndian.PutUint64(be[24:32], out[0])
 	return be
 }
 
@@ -161,22 +186,4 @@ func (z *Element) Sqrt(x *Element) bool {
 	// Re-square the candidate because non-residues also produce a field value.
 	check.Square(z)
 	return check.Equal(x)
-}
-
-func lessThan(a, b *[Size]byte) bool {
-	for i := range Size {
-		if a[i] < b[i] {
-			return true
-		}
-		if a[i] > b[i] {
-			return false
-		}
-	}
-	return false
-}
-
-func reverseBytes(dst, src []byte) {
-	for i := range src {
-		dst[len(src)-1-i] = src[i]
-	}
 }

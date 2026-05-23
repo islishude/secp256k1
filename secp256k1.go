@@ -38,10 +38,11 @@ type PrivateKey struct {
 // PublicKey is a secp256k1 verification key represented by an affine curve
 // point.
 type PublicKey struct {
-	x         field.Element
-	y         field.Element
-	wnafTable [wnafTableSize]affinePoint
-	valid     bool
+	x             field.Element
+	y             field.Element
+	wnafTable     [varWNAFTableSize]affinePoint
+	endoWNAFTable [varWNAFTableSize]affinePoint
+	valid         bool
 }
 
 // GenerateKey reads random bytes until it produces a valid non-zero private
@@ -70,9 +71,7 @@ func NewPrivateKey(b [PrivateKeySize]byte) (*PrivateKey, error) {
 		return nil, errInvalidPrivateKey
 	}
 	var d scalar.Element
-	if !d.SetBytes(&b) {
-		return nil, errInvalidPrivateKey
-	}
+	d.SetBytesUnchecked(&b)
 	return &PrivateKey{d: d}, nil
 }
 
@@ -100,10 +99,7 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 	for {
 		kBytes := nonce.Next()
 		var nonceScalar scalar.Element
-		if !nonceScalar.SetBytes(&kBytes) {
-			nonce.Reject()
-			continue
-		}
+		nonceScalar.SetBytesUnchecked(&kBytes)
 
 		rPoint := scalarBaseMult(&nonceScalar)
 		rx, ry, ok := rPoint.affine()
@@ -125,10 +121,7 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 		}
 
 		var r, rd, sum, kinv, s scalar.Element
-		if !r.SetBytes(&rBytes) {
-			nonce.Reject()
-			continue
-		}
+		r.SetBytesUnchecked(&rBytes)
 		rd.Mul(&r, &k.d)
 		sum.Add(e, &rd)
 		kinv.Inv(&nonceScalar)
@@ -167,7 +160,7 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 	if pub == nil || !pub.isValid() {
 		return false
 	}
-	r, s, ok := parseSignatureScalars(sig)
+	r, s, ok := parseSignatureScalars(&sig)
 	if !ok {
 		return false
 	}
@@ -179,7 +172,7 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 	u2.Mul(&r, &w)
 
 	// ECDSA verification checks that x((e/s)G + (r/s)Q) mod n equals r.
-	sum := doubleScalarBaseMultPrecomputed(&u1, &pub.wnafTable, &u2)
+	sum := doubleScalarBaseMultPrecomputed(&u1, &u2, &pub.wnafTable, &pub.endoWNAFTable)
 	if sum.isInfinity() {
 		return false
 	}
@@ -191,7 +184,7 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 
 // RecoverDigest reconstructs the public key that produced sig over digest.
 func RecoverDigest(digest [32]byte, sig [RecoverableSignatureSize]byte) (*PublicKey, error) {
-	r, s, ok := parseSignatureScalars(sig)
+	r, s, ok := parseSignatureScalars(&sig)
 	if !ok {
 		return nil, errInvalidSignature
 	}
@@ -200,7 +193,7 @@ func RecoverDigest(digest [32]byte, sig [RecoverableSignatureSize]byte) (*Public
 	if recid>>1 == 1 {
 		// The high recovery bit means the ephemeral point used x = r + n.
 		var ok bool
-		xBytes, ok = addOrder(xBytes)
+		xBytes, ok = scalar.AddOrder(xBytes)
 		if !ok {
 			return nil, errInvalidSignature
 		}
@@ -351,41 +344,27 @@ func publicKeyFromPoint(p *point) *PublicKey {
 func newPublicKey(x, y *field.Element) *PublicKey {
 	var p point
 	p.setAffine(x, y)
+	wnafTable := newAffineOddTable(&p)
 	return &PublicKey{
-		x:         *x,
-		y:         *y,
-		wnafTable: newAffineOddTable(&p),
-		valid:     true,
+		x:             *x,
+		y:             *y,
+		wnafTable:     wnafTable,
+		endoWNAFTable: newEndomorphismWNAFTable(&wnafTable),
+		valid:         true,
 	}
 }
 
-func parseSignatureScalars(sig [RecoverableSignatureSize]byte) (scalar.Element, scalar.Element, bool) {
-	var rBytes, sBytes [32]byte
-	copy(rBytes[:], sig[:32])
-	copy(sBytes[:], sig[32:64])
+func parseSignatureScalars(sig *[RecoverableSignatureSize]byte) (scalar.Element, scalar.Element, bool) {
+	rBytes := (*[32]byte)(sig[:32])
+	sBytes := (*[32]byte)(sig[32:64])
 	recid := sig[recoverableSignatureRecIDAt]
 	if recid > 3 ||
-		scalar.IsZeroBytes(&rBytes) || scalar.IsZeroBytes(&sBytes) ||
-		!scalar.LessThanOrder(&rBytes) || !scalar.LessThanOrder(&sBytes) {
+		scalar.IsZeroBytes(rBytes) || scalar.IsZeroBytes(sBytes) ||
+		!scalar.LessThanOrder(rBytes) || !scalar.LessThanOrder(sBytes) {
 		return scalar.Element{}, scalar.Element{}, false
 	}
 	var r, s scalar.Element
-	if !r.SetBytes(&rBytes) || !s.SetBytes(&sBytes) {
-		return scalar.Element{}, scalar.Element{}, false
-	}
+	r.SetBytesUnchecked(rBytes)
+	s.SetBytesUnchecked(sBytes)
 	return r, s, true
-}
-
-func addOrder(r [32]byte) ([32]byte, bool) {
-	var out [32]byte
-	carry := 0
-	for i := 31; i >= 0; i-- {
-		v := int(r[i]) + int(scalar.Order[i]) + carry
-		out[i] = byte(v)
-		carry = v >> 8
-	}
-	if carry != 0 {
-		return out, false
-	}
-	return out, field.LessThanModulus(&out)
 }

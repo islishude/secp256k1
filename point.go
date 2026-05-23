@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	wnafWindow    = 5
-	wnafTableSize = 1 << (wnafWindow - 2)
+	varWNAFWindow       = 8
+	varWNAFTableSize    = 1 << (varWNAFWindow - 2)
+	generatorWNAFWindow = 8
+	generatorWNAFSize   = 1 << (generatorWNAFWindow - 2)
 )
 
 var (
@@ -25,9 +27,11 @@ var (
 		0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19,
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
-	generator            = newGeneratorPoint()
-	generatorAffineTable = newGeneratorAffineTable()
-	generatorWNAFTable   = newAffineOddTable(&generator)
+	endoBeta               = newEndomorphismBeta()
+	generator              = newGeneratorPoint()
+	generatorAffineTable   = newGeneratorAffineTable()
+	generatorWNAFTable     = newGeneratorWNAFTable()
+	generatorEndoWNAFTable = newGeneratorEndomorphismWNAFTable(&generatorWNAFTable)
 )
 
 // point is a Jacobian-coordinate curve point. The point at infinity is encoded
@@ -52,6 +56,20 @@ func newGeneratorPoint() point {
 	var g point
 	g.setAffine(&x, &y)
 	return g
+}
+
+func newEndomorphismBeta() field.Element {
+	b := [32]byte{
+		0x7a, 0xe9, 0x6a, 0x2b, 0x65, 0x7c, 0x07, 0x10,
+		0x6e, 0x64, 0x47, 0x9e, 0xac, 0x34, 0x34, 0xe9,
+		0x9c, 0xf0, 0x49, 0x75, 0x12, 0xf5, 0x89, 0x95,
+		0xc1, 0x39, 0x6c, 0x28, 0x71, 0x95, 0x01, 0xee,
+	}
+	var beta field.Element
+	if !beta.SetBytes(&b) {
+		panic("secp256k1: invalid endomorphism beta")
+	}
+	return beta
 }
 
 func newGeneratorAffineTable() [64][16]affinePoint {
@@ -358,27 +376,37 @@ func scalarMultAffine(p *point, k *[32]byte) point {
 
 func doubleScalarBaseMult(k1 *scalar.Element, p2 *point, k2 *scalar.Element) point {
 	p2Table := newAffineOddTable(p2)
-	return doubleScalarBaseMultPrecomputed(k1, &p2Table, k2)
+	p2EndoTable := newEndomorphismWNAFTable(&p2Table)
+	return doubleScalarBaseMultPrecomputed(k1, k2, &p2Table, &p2EndoTable)
 }
 
-func doubleScalarBaseMultPrecomputed(k1 *scalar.Element, p2Table *[wnafTableSize]affinePoint, k2 *scalar.Element) point {
-	k1Bytes := k1.Bytes()
-	k2Bytes := k2.Bytes()
-	k1NAF := wnaf(&k1Bytes)
-	k2NAF := wnaf(&k2Bytes)
+func doubleScalarBaseMultPrecomputed(k1, k2 *scalar.Element, p2Table, p2EndoTable *[varWNAFTableSize]affinePoint) point {
+	k1a, k1b := scalar.SplitEndomorphism(k1)
+	k2a, k2b := scalar.SplitEndomorphism(k2)
+	k1aNAF, k1aLen, k1aSign := signedWNAF(&k1a, generatorWNAFWindow)
+	k1bNAF, k1bLen, k1bSign := signedWNAF(&k1b, generatorWNAFWindow)
+	k2aNAF, k2aLen, k2aSign := signedWNAF(&k2a, varWNAFWindow)
+	k2bNAF, k2bLen, k2bSign := signedWNAF(&k2b, varWNAFWindow)
+	n := max4Int(k1aLen, k1bLen, k2aLen, k2bLen)
+	k1aDigits := k1aNAF[:n]
+	k1bDigits := k1bNAF[:n]
+	k2aDigits := k2aNAF[:n]
+	k2bDigits := k2bNAF[:n]
 
 	var r point
 	r.setInfinity()
-	for i := len(k1NAF) - 1; i >= 0; i-- {
+	for i := n - 1; i >= 0; i-- {
 		r.double(&r)
-		addWNAFPoint(&r, &generatorWNAFTable, k1NAF[i])
-		addWNAFPoint(&r, p2Table, k2NAF[i])
+		addGeneratorWNAFPoint(&r, &generatorWNAFTable, k1aDigits[i]*k1aSign)
+		addGeneratorWNAFPoint(&r, &generatorEndoWNAFTable, k1bDigits[i]*k1bSign)
+		addVariableWNAFPoint(&r, p2Table, k2aDigits[i]*k2aSign)
+		addVariableWNAFPoint(&r, p2EndoTable, k2bDigits[i]*k2bSign)
 	}
 	return r
 }
 
-func newAffineOddTable(p *point) [wnafTableSize]affinePoint {
-	var points [wnafTableSize]point
+func newAffineOddTable(p *point) [varWNAFTableSize]affinePoint {
+	var points [varWNAFTableSize]point
 	points[0].set(p)
 	if len(points) > 1 {
 		var twoP point
@@ -390,8 +418,41 @@ func newAffineOddTable(p *point) [wnafTableSize]affinePoint {
 	return batchNormalize(points)
 }
 
-func batchNormalize(points [wnafTableSize]point) [wnafTableSize]affinePoint {
-	var prefixes [wnafTableSize]field.Element
+func newGeneratorWNAFTable() [generatorWNAFSize]affinePoint {
+	var points [generatorWNAFSize]point
+	points[0].set(&generator)
+	if len(points) > 1 {
+		var twoG point
+		twoG.double(&generator)
+		for i := 1; i < len(points); i++ {
+			points[i].add(&points[i-1], &twoG)
+		}
+	}
+	return batchNormalizeGenerator(points)
+}
+
+func newEndomorphismWNAFTable(table *[varWNAFTableSize]affinePoint) [varWNAFTableSize]affinePoint {
+	var out [varWNAFTableSize]affinePoint
+	for i := range table {
+		out[i].y.Set(&table[i].y)
+		out[i].infinity = table[i].infinity
+		out[i].x.Mul(&table[i].x, &endoBeta)
+	}
+	return out
+}
+
+func newGeneratorEndomorphismWNAFTable(table *[generatorWNAFSize]affinePoint) [generatorWNAFSize]affinePoint {
+	var out [generatorWNAFSize]affinePoint
+	for i := range table {
+		out[i].y.Set(&table[i].y)
+		out[i].infinity = table[i].infinity
+		out[i].x.Mul(&table[i].x, &endoBeta)
+	}
+	return out
+}
+
+func batchNormalize(points [varWNAFTableSize]point) [varWNAFTableSize]affinePoint {
+	var prefixes [varWNAFTableSize]field.Element
 	var acc field.Element
 	acc.SetOne()
 	for i := range points {
@@ -402,7 +463,33 @@ func batchNormalize(points [wnafTableSize]point) [wnafTableSize]affinePoint {
 	var accInv field.Element
 	accInv.Inv(&acc)
 
-	var out [wnafTableSize]affinePoint
+	var out [varWNAFTableSize]affinePoint
+	for i := len(points) - 1; i >= 0; i-- {
+		var zInv, z2, z3 field.Element
+		zInv.Mul(&accInv, &prefixes[i])
+		accInv.Mul(&accInv, &points[i].z)
+
+		z2.Square(&zInv)
+		z3.Mul(&z2, &zInv)
+		out[i].x.Mul(&points[i].x, &z2)
+		out[i].y.Mul(&points[i].y, &z3)
+	}
+	return out
+}
+
+func batchNormalizeGenerator(points [generatorWNAFSize]point) [generatorWNAFSize]affinePoint {
+	var prefixes [generatorWNAFSize]field.Element
+	var acc field.Element
+	acc.SetOne()
+	for i := range points {
+		prefixes[i].Set(&acc)
+		acc.Mul(&acc, &points[i].z)
+	}
+
+	var accInv field.Element
+	accInv.Inv(&acc)
+
+	var out [generatorWNAFSize]affinePoint
 	for i := len(points) - 1; i >= 0; i-- {
 		var zInv, z2, z3 field.Element
 		zInv.Mul(&accInv, &prefixes[i])
@@ -442,7 +529,20 @@ func batchNormalize15(points [15]point) [15]affinePoint {
 	return out
 }
 
-func addWNAFPoint(r *point, table *[wnafTableSize]affinePoint, digit int8) {
+func signedWNAF(k *scalar.Element, window int) ([257]int8, int, int8) {
+	sign := int8(1)
+	kBytes := k.Bytes()
+	if scalar.IsHighBytes(&kBytes) {
+		var neg scalar.Element
+		neg.Neg(k)
+		kBytes = neg.Bytes()
+		sign = -1
+	}
+	naf, length := wnaf(&kBytes, window)
+	return naf, length, sign
+}
+
+func addVariableWNAFPoint(r *point, table *[varWNAFTableSize]affinePoint, digit int8) {
 	if digit == 0 {
 		return
 	}
@@ -458,14 +558,31 @@ func addWNAFPoint(r *point, table *[wnafTableSize]affinePoint, digit int8) {
 	r.addAffine(r, &entry.x, &y)
 }
 
-func wnaf(k *[32]byte) [257]int8 {
+func addGeneratorWNAFPoint(r *point, table *[generatorWNAFSize]affinePoint, digit int8) {
+	if digit == 0 {
+		return
+	}
+	if digit > 0 {
+		entry := &table[(digit-1)/2]
+		r.addAffine(r, &entry.x, &entry.y)
+		return
+	}
+
+	entry := &table[(-digit-1)/2]
+	var y field.Element
+	y.Neg(&entry.y)
+	r.addAffine(r, &entry.x, &y)
+}
+
+func wnaf(k *[32]byte, window int) ([257]int8, int) {
 	words := scalarWords(k)
 	var out [257]int8
-	for i := 0; !isZeroWords(&words); i++ {
+	length := 0
+	for i := 0; i < len(out) && !isZeroWords(&words); i++ {
 		if words[0]&1 == 1 {
-			digit := int(words[0] & ((1 << wnafWindow) - 1))
-			if digit > 1<<(wnafWindow-1) {
-				digit -= 1 << wnafWindow
+			digit := int(words[0] & ((1 << window) - 1))
+			if digit > 1<<(window-1) {
+				digit -= 1 << window
 			}
 			out[i] = int8(digit)
 			if digit > 0 {
@@ -475,8 +592,22 @@ func wnaf(k *[32]byte) [257]int8 {
 			}
 		}
 		shr1(&words)
+		length = i + 1
 	}
-	return out
+	return out, length
+}
+
+func max4Int(a, b, c, d int) int {
+	if b > a {
+		a = b
+	}
+	if c > a {
+		a = c
+	}
+	if d > a {
+		a = d
+	}
+	return a
 }
 
 func scalarWords(k *[32]byte) [4]uint64 {

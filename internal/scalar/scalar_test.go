@@ -77,6 +77,49 @@ func TestReductionAndRejectsNonCanonicalEncoding(t *testing.T) {
 	}
 }
 
+func TestSplitEndomorphismAgainstBig(t *testing.T) {
+	lambdaBytes := fromHex("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72")
+	lambdaBig := new(big.Int).SetBytes(lambdaBytes[:])
+	halfOrderBig := new(big.Int).Rsh(new(big.Int).Set(orderBig), 1)
+	values := [][Size]byte{
+		fromHex("0000000000000000000000000000000000000000000000000000000000000000"),
+		fromHex("0000000000000000000000000000000000000000000000000000000000000001"),
+		fromHex("0000000000000000000000000000000000000000000000000000000000000002"),
+		lambdaBytes,
+		fromHex("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
+		fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"),
+	}
+
+	for _, kb := range values {
+		var k Element
+		if !k.SetBytes(&kb) {
+			t.Fatalf("SetBytes failed")
+		}
+		k1, k2 := SplitEndomorphism(&k)
+		k1Bytes := k1.Bytes()
+		k2Bytes := k2.Bytes()
+		k1Big := new(big.Int).SetBytes(k1Bytes[:])
+		k2Big := new(big.Int).SetBytes(k2Bytes[:])
+
+		got := new(big.Int).Mul(k2Big, lambdaBig)
+		got.Add(got, k1Big)
+		got.Mod(got, orderBig)
+		want := new(big.Int).SetBytes(kb[:])
+		if got.Cmp(want) != 0 {
+			t.Fatalf("split relation mismatch for %x: got %x want %x", kb, got, want)
+		}
+
+		for _, part := range []*big.Int{k1Big, k2Big} {
+			if part.Cmp(halfOrderBig) > 0 {
+				part.Sub(orderBig, part)
+			}
+			if part.BitLen() > 130 {
+				t.Fatalf("split component too large for %x: bit length %d", kb, part.BitLen())
+			}
+		}
+	}
+}
+
 func assertScalarBig(t *testing.T, got *Element, want *big.Int) {
 	t.Helper()
 	b := got.Bytes()
