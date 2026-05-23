@@ -70,10 +70,41 @@ func TestReductionAndRejectsNonCanonicalEncoding(t *testing.T) {
 	if x.SetBytes(&Order) {
 		t.Fatal("accepted order as canonical scalar")
 	}
-	got := SetBytesModOrder(Order)
+	got := SetBytesModOrder(&Order)
 	want := [Size]byte{}
 	if got != want {
 		t.Fatalf("reduction mismatch: got %x want %x", got, want)
+	}
+}
+
+func TestIsHigh(t *testing.T) {
+	halfPlusOne := scalarBigToBytes(new(big.Int).Add(new(big.Int).SetBytes(HalfOrder[:]), big.NewInt(1)))
+	orderMinusOne := scalarBigToBytes(new(big.Int).Sub(new(big.Int).Set(orderBig), big.NewInt(1)))
+	tests := []struct {
+		name string
+		in   [Size]byte
+		want bool
+	}{
+		{name: "zero", in: fromHex("00"), want: false},
+		{name: "low with large least significant limb", in: fromHex("000000000000000000000000000000000000000000000000ffffffffffffffff"), want: false},
+		{name: "half order", in: HalfOrder, want: false},
+		{name: "half order plus one", in: halfPlusOne, want: true},
+		{name: "order minus one", in: orderMinusOne, want: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var x Element
+			if !x.SetBytes(&tc.in) {
+				t.Fatalf("SetBytes(%x) failed", tc.in)
+			}
+			if got := x.IsHigh(); got != tc.want {
+				t.Fatalf("IsHigh(%x) = %v, want %v", tc.in, got, tc.want)
+			}
+			if got := IsHighBytes(&tc.in); got != tc.want {
+				t.Fatalf("IsHighBytes(%x) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
 	}
 }
 

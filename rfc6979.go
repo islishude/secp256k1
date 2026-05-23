@@ -18,7 +18,7 @@ type nonceRFC6979 struct {
 	v [32]byte
 }
 
-func newNonceRFC6979(priv, digest [32]byte) nonceRFC6979 {
+func newNonceRFC6979(priv, digest *[32]byte) nonceRFC6979 {
 	var n nonceRFC6979
 	for i := range n.v {
 		n.v[i] = 0x01
@@ -37,9 +37,8 @@ func newNonceRFC6979(priv, digest [32]byte) nonceRFC6979 {
 func (n *nonceRFC6979) Next() [32]byte {
 	for {
 		n.v = hmacDigest(n.k[:], n.v[:])
-		candidate := n.v
-		if scalar.LessThanOrder(&candidate) && !scalar.IsZeroBytes(&candidate) {
-			return candidate
+		if scalar.LessThanOrder(&n.v) && n.v != [32]byte{} {
+			return n.v
 		}
 		// Invalid candidates are fed back into the DRBG, as RFC6979 requires.
 		n.Reject()
@@ -52,33 +51,39 @@ func (n *nonceRFC6979) Reject() {
 }
 
 func hmacDigest(key []byte, chunks ...[]byte) [32]byte {
-	var keyBlock [sha256.BlockSize]byte
-	if len(key) > sha256.BlockSize {
-		hashedKey := sha256.Sum256(key)
-		copy(keyBlock[:], hashedKey[:])
-	} else {
-		copy(keyBlock[:], key)
-	}
-
 	var inner [sha256.BlockSize + maxHMACPayloadSize]byte
 	var outer [sha256.BlockSize + sha256.Size]byte
+
+	// First build the default HMAC pads for a zero key.
 	for i := range sha256.BlockSize {
-		// Build the SHA-256 HMAC pads directly to avoid heap allocations in the
-		// signing path.
-		inner[i] = keyBlock[i] ^ 0x36
-		outer[i] = keyBlock[i] ^ 0x5c
+		inner[i] = 0x36
+		outer[i] = 0x5c
+	}
+
+	// Then XOR in the actual key material.
+	if len(key) > sha256.BlockSize {
+		hashedKey := sha256.Sum256(key)
+		for i, b := range hashedKey {
+			inner[i] ^= b
+			outer[i] ^= b
+		}
+	} else {
+		for i, b := range key {
+			inner[i] ^= b
+			outer[i] ^= b
+		}
 	}
 
 	n := sha256.BlockSize
 	for _, chunk := range chunks {
-		if n+len(chunk) > len(inner) {
+		if len(chunk) > len(inner)-n {
 			panic("secp256k1: RFC6979 HMAC input too large")
 		}
-		copy(inner[n:], chunk)
-		n += len(chunk)
+		n += copy(inner[n:], chunk)
 	}
 
 	innerHash := sha256.Sum256(inner[:n])
 	copy(outer[sha256.BlockSize:], innerHash[:])
-	return sha256.Sum256(outer[:])
+
+	return sha256.Sum256(outer[:sha256.BlockSize+sha256.Size])
 }

@@ -28,6 +28,7 @@ var (
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
 	endoBeta               = newEndomorphismBeta()
+	secp256k1B3            = fieldElementUint64(21)
 	generator              = newGeneratorPoint()
 	generatorAffineTable   = newGeneratorAffineTable()
 	generatorWNAFTable     = newGeneratorWNAFTable()
@@ -46,6 +47,12 @@ type affinePoint struct {
 	x        field.Element
 	y        field.Element
 	infinity uint64
+}
+
+type projectivePoint struct {
+	x field.Element
+	y field.Element
+	z field.Element
 }
 
 func newGeneratorPoint() point {
@@ -70,6 +77,12 @@ func newEndomorphismBeta() field.Element {
 		panic("secp256k1: invalid endomorphism beta")
 	}
 	return beta
+}
+
+func fieldElementUint64(v uint64) field.Element {
+	var out field.Element
+	out.SetUint64(v)
+	return out
 }
 
 func newGeneratorAffineTable() [64][16]affinePoint {
@@ -327,21 +340,90 @@ func (p *affinePoint) selectPoint(x, y *affinePoint, choice uint64) *affinePoint
 	return p
 }
 
+func (p *projectivePoint) setInfinity() *projectivePoint {
+	p.x.SetZero()
+	p.y.SetOne()
+	p.z.SetZero()
+	return p
+}
+
+func (p *projectivePoint) selectPoint(x, y *projectivePoint, choice uint64) *projectivePoint {
+	p.x.Select(&x.x, &y.x, choice)
+	p.y.Select(&x.y, &y.y, choice)
+	p.z.Select(&x.z, &y.z, choice)
+	return p
+}
+
+// addCompleteMixed implements the complete mixed addition formula for
+// j-invariant 0 curves over projective coordinates, specialized to b = 7.
+func (p *projectivePoint) addCompleteMixed(p1 *projectivePoint, p2 *affinePoint) *projectivePoint {
+	var t0, t1, t2, t3, t4 field.Element
+	var x3, y3, z3 field.Element
+
+	t0.Mul(&p1.x, &p2.x)
+	t1.Mul(&p1.y, &p2.y)
+	t3.Add(&p2.x, &p2.y)
+	t4.Add(&p1.x, &p1.y)
+	t3.Mul(&t3, &t4)
+	t4.Add(&t0, &t1)
+	t3.Sub(&t3, &t4)
+	t4.Mul(&p2.y, &p1.z)
+	t4.Add(&t4, &p1.y)
+	y3.Mul(&p2.x, &p1.z)
+	y3.Add(&y3, &p1.x)
+	x3.Add(&t0, &t0)
+	t0.Add(&x3, &t0)
+	t2.Mul(&secp256k1B3, &p1.z)
+	z3.Add(&t1, &t2)
+	t1.Sub(&t1, &t2)
+	y3.Mul(&secp256k1B3, &y3)
+	x3.Mul(&t4, &y3)
+	t2.Mul(&t3, &t1)
+	x3.Sub(&t2, &x3)
+	y3.Mul(&y3, &t0)
+	t1.Mul(&t1, &z3)
+	y3.Add(&t1, &y3)
+	t0.Mul(&t0, &t3)
+	z3.Mul(&z3, &t4)
+	z3.Add(&z3, &t0)
+
+	p.x.Set(&x3)
+	p.y.Set(&y3)
+	p.z.Set(&z3)
+	return p
+}
+
+func (p *projectivePoint) jacobian() point {
+	var out point
+	if p.z.IsZero() {
+		out.setInfinity()
+		return out
+	}
+	var zInv, x, y field.Element
+	zInv.Inv(&p.z)
+	x.Mul(&p.x, &zInv)
+	y.Mul(&p.y, &zInv)
+	out.setAffine(&x, &y)
+	return out
+}
+
 func scalarBaseMult(k *scalar.Element) point {
 	b := k.Bytes()
-	var r point
+	var r projectivePoint
 	r.setInfinity()
 	for i := range generatorAffineTable {
 		digit := nibbleAt(&b, i)
-		selected := generatorAffineTable[i][0]
-		for j := 1; j < len(generatorAffineTable[i]); j++ {
+		selected := generatorAffineTable[i][1]
+		for j := 2; j < len(generatorAffineTable[i]); j++ {
 			// Scan the whole window table and conditionally select instead of
 			// indexing by the secret scalar nibble.
 			selected.selectPoint(&selected, &generatorAffineTable[i][j], equalByte(digit, byte(j)))
 		}
-		r.addMixed(&r, &selected)
+		var sum projectivePoint
+		sum.addCompleteMixed(&r, &selected)
+		r.selectPoint(&r, &sum, equalByte(digit, 0)^1)
 	}
-	return r
+	return r.jacobian()
 }
 
 func scalarMult(p *point, k *[32]byte) point {
@@ -387,7 +469,7 @@ func doubleScalarBaseMultPrecomputed(k1, k2 *scalar.Element, p2Table, p2EndoTabl
 	k1bNAF, k1bLen, k1bSign := signedWNAF(&k1b, generatorWNAFWindow)
 	k2aNAF, k2aLen, k2aSign := signedWNAF(&k2a, varWNAFWindow)
 	k2bNAF, k2bLen, k2bSign := signedWNAF(&k2b, varWNAFWindow)
-	n := max4Int(k1aLen, k1bLen, k2aLen, k2bLen)
+	n := max(k1aLen, k1bLen, k2aLen, k2bLen)
 	k1aDigits := k1aNAF[:n]
 	k1bDigits := k1bNAF[:n]
 	k2aDigits := k2aNAF[:n]
@@ -595,19 +677,6 @@ func wnaf(k *[32]byte, window int) ([257]int8, int) {
 		length = i + 1
 	}
 	return out, length
-}
-
-func max4Int(a, b, c, d int) int {
-	if b > a {
-		a = b
-	}
-	if c > a {
-		a = c
-	}
-	if d > a {
-		a = d
-	}
-	return a
 }
 
 func scalarWords(k *[32]byte) [4]uint64 {

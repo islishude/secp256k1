@@ -121,7 +121,7 @@ func IsZeroBytes(b *[Size]byte) bool {
 //
 // Since b is exactly 32 bytes and Order is close to 2^256, at most one
 // subtraction is needed.
-func SetBytesModOrder(b [Size]byte) (out [Size]byte) {
+func SetBytesModOrder(b *[Size]byte) (out [Size]byte) {
 	x0 := binary.BigEndian.Uint64(b[0:8])
 	x1 := binary.BigEndian.Uint64(b[8:16])
 	x2 := binary.BigEndian.Uint64(b[16:24])
@@ -162,7 +162,7 @@ func (z *Element) Set(x *Element) *Element {
 
 // SetZero assigns z = 0.
 func (z *Element) SetZero() *Element {
-	z.x = fiat.MontgomeryDomainFieldElement{}
+	clear(z.x[:])
 	return z
 }
 
@@ -209,7 +209,7 @@ func (z *Element) SetBytesUnchecked(b *[Size]byte) *Element {
 
 // SetBytesModOrder assigns z to b reduced modulo the group order.
 func (z *Element) SetBytesModOrder(b *[Size]byte) *Element {
-	reduced := SetBytesModOrder(*b)
+	reduced := SetBytesModOrder(b)
 	z.SetBytesUnchecked(&reduced)
 	return z
 }
@@ -233,8 +233,18 @@ func (z *Element) IsZero() bool {
 
 // IsHigh reports whether z is greater than n/2.
 func (z *Element) IsHigh() bool {
-	b := z.Bytes()
-	return IsHighBytes(&b)
+	var out fiat.NonMontgomeryDomainFieldElement
+	fiat.FromMontgomery(&out, &z.x)
+	if out[3] != halfOrder0 {
+		return out[3] > halfOrder0
+	}
+	if out[2] != halfOrder1 {
+		return out[2] > halfOrder1
+	}
+	if out[1] != halfOrder2 {
+		return out[1] > halfOrder2
+	}
+	return out[0] > halfOrder3
 }
 
 // Equal reports whether z and x are the same scalar.
@@ -394,6 +404,7 @@ func mulAdd64Carry(digit1, digit2, m, c uint64) (hi, lo uint64) {
 	return hi, lo
 }
 
+// AddOrder returns r + n and whether the result is less than p - n.
 func AddOrder(r [32]byte) ([32]byte, bool) {
 	x0 := binary.BigEndian.Uint64(r[0:8])
 	x1 := binary.BigEndian.Uint64(r[8:16])

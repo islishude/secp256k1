@@ -61,7 +61,7 @@ func (z *Element) Set(x *Element) *Element {
 
 // SetZero assigns z = 0.
 func (z *Element) SetZero() *Element {
-	z.x = fiat.MontgomeryDomainFieldElement{}
+	clear(z.x[:])
 	return z
 }
 

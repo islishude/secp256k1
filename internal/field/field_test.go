@@ -96,7 +96,6 @@ func fromHex(s string) [Size]byte {
 		panic("bad hex")
 	}
 	var out [Size]byte
-	b := n.Bytes()
-	copy(out[Size-len(b):], b)
+	n.FillBytes(out[:])
 	return out
 }

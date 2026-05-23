@@ -28,8 +28,8 @@ func FuzzElementArithmetic(f *testing.F) {
 			t.Fatalf("SetBytes(%x) = %v, want %v", yRaw, got, wantYCanonical)
 		}
 
-		xBytes := SetBytesModOrder(xRaw)
-		yBytes := SetBytesModOrder(yRaw)
+		xBytes := SetBytesModOrder(&xRaw)
+		yBytes := SetBytesModOrder(&yRaw)
 		if got, want := xBytes, scalarBigToBytes(new(big.Int).Mod(new(big.Int).SetBytes(xRaw[:]), orderBig)); got != want {
 			t.Fatalf("SetBytesModOrder(%x) = %x, want %x", xRaw, got, want)
 		}

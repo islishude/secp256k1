@@ -93,7 +93,7 @@ func (k *PrivateKey) Public() *PublicKey {
 // the low half of the group order so the signature has a unique canonical form.
 func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte, error) {
 	privBytes := k.d.Bytes()
-	nonce := newNonceRFC6979(privBytes, digest)
+	nonce := newNonceRFC6979(&privBytes, &digest)
 	e := new(scalar.Element).SetBytesModOrder(&digest)
 
 	for {
@@ -114,7 +114,7 @@ func (k *PrivateKey) SignDigest(digest [32]byte) ([RecoverableSignatureSize]byte
 		if !scalar.LessThanOrder(&rxBytes) {
 			xOverflow = 1
 		}
-		rBytes := scalar.SetBytesModOrder(rxBytes)
+		rBytes := scalar.SetBytesModOrder(&rxBytes)
 		if scalar.IsZeroBytes(&rBytes) {
 			nonce.Reject()
 			continue
@@ -177,7 +177,7 @@ func VerifyDigest(pub *PublicKey, digest [32]byte, sig [RecoverableSignatureSize
 		return false
 	}
 	x, _, _ := sum.affine()
-	xBytes := scalar.SetBytesModOrder(x.Bytes())
+	xBytes := scalar.SetBytesModOrder(new(x.Bytes()))
 	rBytes := r.Bytes()
 	return subtle.ConstantTimeCompare(xBytes[:], rBytes[:]) == 1
 }
@@ -360,7 +360,8 @@ func parseSignatureScalars(sig *[RecoverableSignatureSize]byte) (scalar.Element,
 	recid := sig[recoverableSignatureRecIDAt]
 	if recid > 3 ||
 		scalar.IsZeroBytes(rBytes) || scalar.IsZeroBytes(sBytes) ||
-		!scalar.LessThanOrder(rBytes) || !scalar.LessThanOrder(sBytes) {
+		!scalar.LessThanOrder(rBytes) || !scalar.LessThanOrder(sBytes) ||
+		scalar.IsHighBytes(sBytes) {
 		return scalar.Element{}, scalar.Element{}, false
 	}
 	var r, s scalar.Element

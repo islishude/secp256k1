@@ -64,6 +64,57 @@ func TestGroupOrder(t *testing.T) {
 	}
 }
 
+func TestScalarBaseMultZero(t *testing.T) {
+	var zero scalar.Element
+	got := scalarBaseMult(&zero)
+	if !got.isInfinity() {
+		t.Fatal("0*G is not infinity")
+	}
+}
+
+func TestScalarBaseMultAgainstBig(t *testing.T) {
+	orderMinusOne := scalar.Order
+	for i := len(orderMinusOne) - 1; i >= 0; i-- {
+		if orderMinusOne[i] > 0 {
+			orderMinusOne[i]--
+			break
+		}
+		orderMinusOne[i] = 0xff
+	}
+
+	scalars := [][32]byte{
+		must32("00"),
+		must32("01"),
+		must32("02"),
+		must32("03"),
+		must32("2a"),
+		must32("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
+		orderMinusOne,
+	}
+	for _, kb := range scalars {
+		var k scalar.Element
+		if !k.SetBytes(&kb) {
+			t.Fatalf("SetBytes(%x) failed", kb)
+		}
+		got := scalarBaseMult(&k)
+		wantX, wantY := bigScalarBaseMult(new(big.Int).SetBytes(kb[:]))
+		if wantX == nil {
+			if !got.isInfinity() {
+				t.Fatalf("scalar %x: got non-infinity, want infinity", kb)
+			}
+			continue
+		}
+		gotX, gotY, ok := got.affine()
+		if !ok {
+			t.Fatalf("scalar %x produced infinity", kb)
+		}
+		if gotX.Bytes() != bigTo32(wantX) || gotY.Bytes() != bigTo32(wantY) {
+			t.Fatalf("scalar %x mismatch\n got (%x,%x)\nwant (%x,%x)",
+				kb, gotX.Bytes(), gotY.Bytes(), wantX, wantY)
+		}
+	}
+}
+
 func TestScalarMultiplicationAgainstBig(t *testing.T) {
 	scalars := [][32]byte{
 		must32("01"),
@@ -295,6 +346,10 @@ func TestSignatureRejectsInvalidScalars(t *testing.T) {
 			mutate: func(sig *[RecoverableSignatureSize]byte) {
 				copy(sig[32:64], scalar.Order[:])
 			},
+		},
+		{
+			name:   "high s",
+			mutate: makeSignatureHighS,
 		},
 		{
 			name: "recid out of range",
@@ -533,14 +588,19 @@ func addSignVerifySeed(f *testing.F, key [PrivateKeySize]byte, digest [32]byte) 
 	f.Add(seed)
 }
 
+func makeSignatureHighS(sig *[RecoverableSignatureSize]byte) {
+	s := new(big.Int).SetBytes(sig[32:64])
+	s.Sub(new(big.Int).SetBytes(scalar.Order[:]), s)
+	s.FillBytes(sig[32:64])
+}
+
 func must32(s string) [32]byte {
 	n, ok := new(big.Int).SetString(s, 16)
 	if !ok {
 		panic("bad hex")
 	}
 	var out [32]byte
-	b := n.Bytes()
-	copy(out[32-len(b):], b)
+	n.FillBytes(out[:])
 	return out
 }
 
@@ -617,7 +677,6 @@ func bigPointDouble(x1, y1 *big.Int) (*big.Int, *big.Int) {
 
 func bigTo32(n *big.Int) [32]byte {
 	var out [32]byte
-	b := n.Bytes()
-	copy(out[32-len(b):], b)
+	n.FillBytes(out[:])
 	return out
 }
