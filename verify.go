@@ -2,68 +2,19 @@ package secp256k1
 
 import "github.com/islishude/secp256k1/internal/scalar"
 
-// PreparedPublicKey stores precomputed tables for repeated verification under a
-// single public key.
-type PreparedPublicKey struct {
-	publicKey     PublicKey
-	wnafTable     [varWNAFTableSize]affinePoint
-	endoWNAFTable [varWNAFTableSize]affinePoint
-	valid         bool
-}
-
 // VerifyDigest reports whether sig is a mathematically valid ECDSA signature for
 // digest under pub. High-S signatures are accepted by this function.
 func VerifyDigest(pub PublicKey, digest Digest, sig Signature) bool {
-	prepared, err := pub.Prepare()
-	if err != nil {
-		return false
-	}
-	return prepared.VerifyDigest(digest, sig)
+	return pub.verifyDigest(digest, sig, false)
 }
 
 // VerifyCanonicalDigest reports whether sig is a valid low-S ECDSA signature for
 // digest under pub.
 func VerifyCanonicalDigest(pub PublicKey, digest Digest, sig Signature) bool {
-	prepared, err := pub.Prepare()
-	if err != nil {
-		return false
-	}
-	return prepared.VerifyCanonicalDigest(digest, sig)
+	return pub.verifyDigest(digest, sig, true)
 }
 
-// Prepare builds precomputed verification tables for repeated use of p.
-func (p PublicKey) Prepare() (PreparedPublicKey, error) {
-	if !p.isValid() {
-		return PreparedPublicKey{}, ErrInvalidPublicKey
-	}
-	var point point
-	point.setAffine(&p.x, &p.y)
-	wnafTable := newAffineOddTable(&point)
-	return PreparedPublicKey{
-		publicKey:     p,
-		wnafTable:     wnafTable,
-		endoWNAFTable: newEndomorphismWNAFTable(&wnafTable),
-		valid:         true,
-	}, nil
-}
-
-func (p *PreparedPublicKey) isValid() bool {
-	return p != nil && p.valid && p.publicKey.isValid()
-}
-
-// VerifyDigest reports whether sig is a mathematically valid ECDSA signature for
-// digest under p's prepared public key. High-S signatures are accepted.
-func (p *PreparedPublicKey) VerifyDigest(digest Digest, sig Signature) bool {
-	return p.verifyDigest(digest, sig, false)
-}
-
-// VerifyCanonicalDigest reports whether sig is a valid low-S ECDSA signature for
-// digest under p's prepared public key.
-func (p *PreparedPublicKey) VerifyCanonicalDigest(digest Digest, sig Signature) bool {
-	return p.verifyDigest(digest, sig, true)
-}
-
-func (p *PreparedPublicKey) verifyDigest(digest Digest, sig Signature, requireLowS bool) bool {
+func (p PublicKey) verifyDigest(digest Digest, sig Signature, requireLowS bool) bool {
 	if !p.isValid() {
 		return false
 	}
@@ -79,7 +30,7 @@ func (p *PreparedPublicKey) verifyDigest(digest Digest, sig Signature, requireLo
 	u2.Mul(&r, &w)
 
 	// ECDSA verification checks that x((e/s)G + (r/s)Q) mod n equals r.
-	sum := doubleScalarBaseMultPrecomputed(&u1, &u2, &p.wnafTable, &p.endoWNAFTable)
+	sum := doubleScalarBaseMultPrecomputed(&u1, &u2, &p.precomputed.wnafTable, &p.precomputed.endoWNAFTable)
 	if sum.isInfinity() {
 		return false
 	}

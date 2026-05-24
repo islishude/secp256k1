@@ -86,14 +86,13 @@ func main() {
 | `ParsePrivateKey([]byte)`                          | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order. |
 | `(*PrivateKey).Bytes()`                            | Returns the 32-byte private key encoding or `ErrInvalidPrivateKey`.                                          |
 | `(*PrivateKey).Destroy()`                          | Best-effort cleanup of private scalar material and invalidation of the key.                                  |
-| `(*PrivateKey).PublicKey()`                        | Derives the public key with base-point multiplication.                                                       |
+| `(*PrivateKey).PublicKey()`                        | Derives the public key with base-point multiplication and prepares it for verification.                      |
 | `(*PrivateKey).SignDigest(Digest)`                 | Creates an RFC6979 deterministic low-S `Signature` over a digest.                                            |
 | `(*PrivateKey).SignRecoverableDigest(Digest)`      | Creates an RFC6979 deterministic low-S `RecoverableSignature`.                                               |
 | `VerifyDigest(pub, digest, sig)`                   | Verifies a 64-byte signature and accepts mathematically valid high-S signatures.                             |
 | `VerifyCanonicalDigest(pub, digest, sig)`          | Verifies a 64-byte signature and rejects high-S signatures.                                                  |
-| `(PublicKey).Prepare()`                            | Builds reusable precomputed tables for repeated verification.                                                |
 | `RecoverDigest(digest, recoverableSig)`            | Recovers the public key from a 65-byte recoverable signature.                                                |
-| `ParsePublicKey([]byte)`                           | Parses a SEC 1 compressed or uncompressed public key.                                                        |
+| `ParsePublicKey([]byte)`                           | Parses a SEC 1 compressed or uncompressed public key and prepares it for verification.                       |
 | `(PublicKey).BytesCompressed()`                    | Returns the 33-byte compressed public key encoding or `ErrInvalidPublicKey`.                                 |
 | `(PublicKey).BytesUncompressed()`                  | Returns the 65-byte uncompressed public key encoding or `ErrInvalidPublicKey`.                               |
 

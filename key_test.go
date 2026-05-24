@@ -60,9 +60,6 @@ func TestZeroValueAndDestroyedKeys(t *testing.T) {
 	if _, err := pub.BytesUncompressed(); !errors.Is(err, ErrInvalidPublicKey) {
 		t.Fatalf("zero public key BytesUncompressed error = %v", err)
 	}
-	if _, err := pub.Prepare(); !errors.Is(err, ErrInvalidPublicKey) {
-		t.Fatalf("zero public key Prepare error = %v", err)
-	}
 	if VerifyDigest(pub, digest, sig) {
 		t.Fatal("zero public key verified")
 	}
@@ -72,9 +69,13 @@ func TestZeroValueAndDestroyedKeys(t *testing.T) {
 	if pub.Equal(PublicKey{}) {
 		t.Fatal("zero public keys compared equal")
 	}
-	var prepared PreparedPublicKey
-	if prepared.VerifyDigest(digest, sig) {
-		t.Fatal("zero prepared public key verified")
+
+	missingPrecompute := PublicKey{x: generator.x, y: generator.y, valid: true}
+	if _, err := missingPrecompute.BytesCompressed(); !errors.Is(err, ErrInvalidPublicKey) {
+		t.Fatalf("public key without precompute BytesCompressed error = %v", err)
+	}
+	if VerifyDigest(missingPrecompute, digest, sig) {
+		t.Fatal("public key without precompute verified")
 	}
 
 	keyBytes := must32("01")

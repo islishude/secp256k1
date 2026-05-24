@@ -9,9 +9,15 @@ import (
 // PublicKey is a secp256k1 verification key represented by an affine curve
 // point.
 type PublicKey struct {
-	x     field.Element
-	y     field.Element
-	valid bool
+	x           field.Element
+	y           field.Element
+	precomputed *publicKeyPrecompute
+	valid       bool
+}
+
+type publicKeyPrecompute struct {
+	wnafTable     [varWNAFTableSize]affinePoint
+	endoWNAFTable [varWNAFTableSize]affinePoint
 }
 
 // ParsePublicKey parses a SEC 1 compressed or uncompressed public key.
@@ -91,7 +97,7 @@ func (p PublicKey) Equal(q PublicKey) bool {
 }
 
 func (p PublicKey) isValid() bool {
-	return p.valid && isOnCurve(&p.x, &p.y)
+	return p.valid && p.precomputed != nil && isOnCurve(&p.x, &p.y)
 }
 
 func publicKeyFromPoint(p *point) (PublicKey, bool) {
@@ -103,9 +109,16 @@ func publicKeyFromPoint(p *point) (PublicKey, bool) {
 }
 
 func newPublicKey(x, y *field.Element) PublicKey {
+	var p point
+	p.setAffine(x, y)
+	wnafTable := newAffineOddTable(&p)
 	return PublicKey{
-		x:     *x,
-		y:     *y,
+		x: *x,
+		y: *y,
+		precomputed: &publicKeyPrecompute{
+			wnafTable:     wnafTable,
+			endoWNAFTable: newEndomorphismWNAFTable(&wnafTable),
+		},
 		valid: true,
 	}
 }

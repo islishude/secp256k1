@@ -13,10 +13,11 @@ import (
 var (
 	benchFixture = newFixture()
 
-	localSignatureSink  localsecp256k1.RecoverableSignature
-	decredSignatureSink *decredecdsa.Signature
-	gethSignatureSink   []byte
-	verifySink          bool
+	localSignatureSink            localsecp256k1.Signature
+	localRecoverableSignatureSink localsecp256k1.RecoverableSignature
+	decredSignatureSink           *decredecdsa.Signature
+	gethSignatureSink             []byte
+	verifySink                    bool
 )
 
 type fixture struct {
@@ -102,11 +103,25 @@ func BenchmarkLocalSign(b *testing.B) {
 	digest := benchFixture.digest
 
 	for b.Loop() {
-		signature, err := privateKey.SignRecoverableDigest(digest)
+		signature, err := privateKey.SignDigest(digest)
 		if err != nil {
 			b.Fatal(err)
 		}
 		localSignatureSink = signature
+	}
+}
+
+func BenchmarkLocalSignRecoverable(b *testing.B) {
+	b.ReportAllocs()
+	privateKey := benchFixture.localPrivateKey
+	digest := benchFixture.digest
+
+	for b.Loop() {
+		signature, err := privateKey.SignRecoverableDigest(digest)
+		if err != nil {
+			b.Fatal(err)
+		}
+		localRecoverableSignatureSink = signature
 	}
 }
 

@@ -114,7 +114,7 @@ func TestSignVerifyRecoverDigest(t *testing.T) {
 	}
 }
 
-func TestPreparedPublicKeyVerify(t *testing.T) {
+func TestPublicKeyRepeatedVerify(t *testing.T) {
 	privBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
 	priv, err := ParsePrivateKey(privBytes[:])
 	if err != nil {
@@ -124,20 +124,18 @@ func TestPreparedPublicKeyVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := pub.Prepare()
-	if err != nil {
-		t.Fatal(err)
-	}
-	digest := sha256.Sum256([]byte("secp256k1 prepared verifier"))
+	digest := sha256.Sum256([]byte("secp256k1 public key verifier"))
 	sig, err := priv.SignDigest(digest)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !prepared.VerifyDigest(digest, sig) {
-		t.Fatal("prepared verifier rejected valid signature")
-	}
-	if !prepared.VerifyCanonicalDigest(digest, sig) {
-		t.Fatal("prepared canonical verifier rejected valid signature")
+	for range 2 {
+		if !VerifyDigest(pub, digest, sig) {
+			t.Fatal("public key verifier rejected valid signature")
+		}
+		if !VerifyCanonicalDigest(pub, digest, sig) {
+			t.Fatal("public key canonical verifier rejected valid signature")
+		}
 	}
 }
 
