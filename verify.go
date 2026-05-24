@@ -1,6 +1,9 @@
 package secp256k1
 
-import "github.com/islishude/secp256k1/internal/scalar"
+import (
+	"github.com/islishude/secp256k1/internal/field"
+	"github.com/islishude/secp256k1/internal/scalar"
+)
 
 // VerifyDigest reports whether sig is a mathematically valid ECDSA signature for
 // digest under pub. High-S signatures are accepted by this function.
@@ -38,10 +41,31 @@ func (p PublicKey) verifyDigest(digest Digest, sig Signature, requireLowS bool) 
 	if sum.isInfinity() {
 		return false
 	}
-	x, _, _ := sum.affine()
-	var xScalar scalar.Element
-	xScalar.SetFieldElementModOrder(&x)
-	return xScalar.Equal(&r)
+	return jacobianXEqualsScalar(&sum, &r)
+}
+
+func jacobianXEqualsScalar(p *point, x *scalar.Element) bool {
+	if p.isInfinity() {
+		return false
+	}
+
+	xBytes := x.Bytes()
+	if jacobianXEqualsFieldElement(p, &xBytes) {
+		return true
+	}
+
+	xPlusOrder, ok := scalar.AddOrder(xBytes)
+	return ok && jacobianXEqualsFieldElement(p, &xPlusOrder)
+}
+
+func jacobianXEqualsFieldElement(p *point, xBytes *[field.Size]byte) bool {
+	var x, z2, expected field.Element
+	if !x.SetBytes(xBytes) {
+		return false
+	}
+	z2.Square(&p.z)
+	expected.Mul(&x, &z2)
+	return expected.Equal(&p.x)
 }
 
 func parseSignature(sig *Signature, requireLowS bool) (scalar.Element, scalar.Element, bool) {

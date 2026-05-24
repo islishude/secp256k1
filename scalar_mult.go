@@ -1,8 +1,28 @@
 package secp256k1
 
-import "github.com/islishude/secp256k1/internal/scalar"
+import (
+	"github.com/islishude/secp256k1/internal/field"
+	"github.com/islishude/secp256k1/internal/scalar"
+)
 
 func scalarBaseMult(k *scalar.Element) point {
+	x, y, ok := scalarBaseMultAffine(k)
+	if !ok {
+		var out point
+		out.setInfinity()
+		return out
+	}
+	var out point
+	out.setAffine(&x, &y)
+	return out
+}
+
+func scalarBaseMultAffine(k *scalar.Element) (field.Element, field.Element, bool) {
+	r := scalarBaseMultProjective(k)
+	return r.affine()
+}
+
+func scalarBaseMultProjective(k *scalar.Element) projectivePoint {
 	b := k.Bytes()
 	defer clear(b[:])
 	var r projectivePoint
@@ -19,7 +39,7 @@ func scalarBaseMult(k *scalar.Element) point {
 		sum.addCompleteMixed(&r, &selected)
 		r.selectPoint(&r, &sum, equalByte(digit, 0)^1)
 	}
-	return r.jacobian()
+	return r
 }
 
 func scalarMult(p *point, k *[32]byte) point {

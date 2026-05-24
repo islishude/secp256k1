@@ -299,16 +299,25 @@ func (p *projectivePoint) addCompleteMixed(p1 *projectivePoint, p2 *affinePoint)
 	return p
 }
 
-func (p *projectivePoint) jacobian() point {
-	var out point
+func (p *projectivePoint) affine() (field.Element, field.Element, bool) {
 	if p.z.IsZero() {
-		out.setInfinity()
-		return out
+		var x, y field.Element
+		return x, y, false
 	}
 	var zInv, x, y field.Element
 	zInv.Inv(&p.z)
 	x.Mul(&p.x, &zInv)
 	y.Mul(&p.y, &zInv)
+	return x, y, true
+}
+
+func (p *projectivePoint) jacobian() point {
+	var out point
+	x, y, ok := p.affine()
+	if !ok {
+		out.setInfinity()
+		return out
+	}
 	out.setAffine(&x, &y)
 	return out
 }

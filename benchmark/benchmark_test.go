@@ -13,7 +13,6 @@ import (
 var (
 	benchFixture = newFixture()
 
-	localSignatureSink            localsecp256k1.Signature
 	localRecoverableSignatureSink localsecp256k1.RecoverableSignature
 	decredSignatureSink           *decredecdsa.Signature
 	gethSignatureSink             []byte
@@ -94,20 +93,6 @@ func TestBenchmarkFixtures(t *testing.T) {
 	}
 	if !gethsecp256k1.VerifySignature(benchFixture.gethPublicKey, benchFixture.digest[:], benchFixture.gethSignature[:localsecp256k1.SignatureSize]) {
 		t.Fatal("geth signature does not verify")
-	}
-}
-
-func BenchmarkLocalSign(b *testing.B) {
-	b.ReportAllocs()
-	privateKey := benchFixture.localPrivateKey
-	digest := benchFixture.digest
-
-	for b.Loop() {
-		signature, err := privateKey.SignDigest(digest)
-		if err != nil {
-			b.Fatal(err)
-		}
-		localSignatureSink = signature
 	}
 }
 

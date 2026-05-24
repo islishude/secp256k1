@@ -39,8 +39,7 @@ func (k *PrivateKey) signDigest(digest Digest, recoverable bool) (RecoverableSig
 		var nonceScalar scalar.Element
 		nonceScalar.SetBytesUnchecked(&kBytes)
 
-		rPoint := scalarBaseMult(&nonceScalar)
-		rx, ry, ok := rPoint.affine()
+		rx, ry, ok := scalarBaseMultAffine(&nonceScalar)
 		if !ok {
 			nonce.Reject()
 			continue

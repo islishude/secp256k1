@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/islishude/secp256k1/internal/field"
 	"github.com/islishude/secp256k1/internal/scalar"
 )
 
@@ -140,4 +141,69 @@ func TestDoubleScalarBaseMult(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestJacobianXEqualsScalar(t *testing.T) {
+	oneBytes := must32("01")
+	var one scalar.Element
+	if !one.SetBytes(&oneBytes) {
+		t.Fatal("invalid scalar")
+	}
+
+	t.Run("z=1", func(t *testing.T) {
+		p := pointWithScaledX(t, oneBytes, 1)
+		if !jacobianXEqualsScalar(&p, &one) {
+			t.Fatal("x scalar comparison failed for affine point")
+		}
+	})
+
+	t.Run("z!=1", func(t *testing.T) {
+		p := pointWithScaledX(t, oneBytes, 5)
+		if !jacobianXEqualsScalar(&p, &one) {
+			t.Fatal("x scalar comparison failed for Jacobian point")
+		}
+	})
+
+	t.Run("r+n", func(t *testing.T) {
+		onePlusOrder, ok := scalar.AddOrder(oneBytes)
+		if !ok {
+			t.Fatal("expected one+n to fit in the field")
+		}
+		p := pointWithScaledX(t, onePlusOrder, 7)
+		if !jacobianXEqualsScalar(&p, &one) {
+			t.Fatal("x scalar comparison failed for r+n")
+		}
+	})
+
+	t.Run("mismatch", func(t *testing.T) {
+		p := pointWithScaledX(t, must32("02"), 1)
+		if jacobianXEqualsScalar(&p, &one) {
+			t.Fatal("x scalar comparison accepted a mismatch")
+		}
+	})
+
+	t.Run("infinity", func(t *testing.T) {
+		var p point
+		p.setInfinity()
+		if jacobianXEqualsScalar(&p, &one) {
+			t.Fatal("x scalar comparison accepted infinity")
+		}
+	})
+}
+
+func pointWithScaledX(t *testing.T, xBytes [32]byte, z uint64) point {
+	t.Helper()
+
+	var x, zElement, z2 field.Element
+	if !x.SetBytes(&xBytes) {
+		t.Fatalf("invalid field element: %x", xBytes)
+	}
+	zElement.SetUint64(z)
+	z2.Square(&zElement)
+
+	var p point
+	p.x.Mul(&x, &z2)
+	p.y.SetOne()
+	p.z.Set(&zElement)
+	return p
 }

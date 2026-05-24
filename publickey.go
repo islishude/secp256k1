@@ -98,7 +98,7 @@ func (p PublicKey) Equal(q PublicKey) bool {
 }
 
 func (p PublicKey) isValid() bool {
-	return p.valid && p.precomputed != nil && isOnCurve(&p.x, &p.y)
+	return p.valid && p.precomputed != nil
 }
 
 func publicKeyFromPoint(p *point) (PublicKey, bool) {

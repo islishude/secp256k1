@@ -82,9 +82,12 @@ func (k *PrivateKey) PublicKey() (PublicKey, error) {
 	if !k.isValid() {
 		return PublicKey{}, ErrInvalidPrivateKey
 	}
-	p := scalarBaseMult(&k.d)
-	pub, ok := publicKeyFromPoint(&p)
+	x, y, ok := scalarBaseMultAffine(&k.d)
 	if !ok {
+		return PublicKey{}, ErrInvalidPrivateKey
+	}
+	pub := newPublicKey(&x, &y)
+	if !pub.isValid() {
 		return PublicKey{}, ErrInvalidPrivateKey
 	}
 	return pub, nil
