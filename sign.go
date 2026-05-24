@@ -11,9 +11,7 @@ func (k *PrivateKey) SignDigest(digest Digest) (Signature, error) {
 	if err != nil {
 		return Signature{}, err
 	}
-	var out Signature
-	copy(out[:], sig[:SignatureSize])
-	return out, nil
+	return sig.Signature(), nil
 }
 
 // SignRecoverableDigest signs a message digest and returns r || s || recovery-id.
