@@ -8,9 +8,9 @@ signature public key recovery.
 
 - secp256k1 curve point arithmetic using Jacobian coordinates to reduce field inversions.
 - Deterministic RFC6979 nonces, so signing the same digest with the same key is stable.
-- Low-S normalization to reduce ECDSA signature malleability.
+- Separate 64-byte ECDSA signatures and 65-byte recoverable signatures.
+- Low-S signing and canonical verification to reduce ECDSA signature malleability.
 - SEC 1 compressed and uncompressed public key parsing.
-- 65-byte recoverable signature format: `r || s || recovery-id`.
 - Field and scalar arithmetic backed by fiat-crypto generated Montgomery routines.
 
 ## Installation
@@ -34,10 +34,11 @@ import (
 )
 
 func main() {
-	priv, err := secp256k1.GenerateKey(nil)
+	priv, err := secp256k1.GeneratePrivateKey(nil)
 	if err != nil {
 		panic(err)
 	}
+	defer priv.Destroy()
 
 	digest := sha256.Sum256([]byte("message"))
 	sig, err := priv.SignDigest(digest)
@@ -45,17 +46,27 @@ func main() {
 		panic(err)
 	}
 
-	pub := priv.Public()
-	if !secp256k1.VerifyDigest(pub, digest, sig) {
+	pub, err := priv.PublicKey()
+	if err != nil {
+		panic(err)
+	}
+	if !secp256k1.VerifyCanonicalDigest(pub, digest, sig) {
 		panic("invalid signature")
 	}
 
-	recovered, err := secp256k1.RecoverDigest(digest, sig)
+	recoverable, err := priv.SignRecoverableDigest(digest)
+	if err != nil {
+		panic(err)
+	}
+	recovered, err := secp256k1.RecoverDigest(digest, recoverable)
 	if err != nil {
 		panic(err)
 	}
 
-	compressed := pub.BytesCompressed()
+	compressed, err := pub.BytesCompressed()
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("compressed public key: %x\n", compressed[:])
 	fmt.Printf("recovered matches: %v\n", recovered.Equal(pub))
 }
@@ -63,21 +74,39 @@ func main() {
 
 ## API Overview
 
-| API                                  | Description                                                                                                  |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `GenerateKey(reader)`                | Generates a valid private key from a random source; uses `crypto/rand.Reader` when `reader == nil`.          |
-| `NewPrivateKey([32]byte)`            | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order. |
-| `(*PrivateKey).Public()`             | Derives the public key with base-point multiplication.                                                       |
-| `(*PrivateKey).SignDigest([32]byte)` | Creates an RFC6979 deterministic recoverable ECDSA signature over a 32-byte digest.                          |
-| `VerifyDigest(pub, digest, sig)`     | Verifies a digest and 65-byte signature.                                                                     |
-| `RecoverDigest(digest, sig)`         | Recovers the public key from a recoverable signature.                                                        |
-| `ParsePublicKey([]byte)`             | Parses a SEC 1 compressed or uncompressed public key.                                                        |
-| `(*PublicKey).BytesCompressed()`     | Returns the 33-byte compressed public key encoding.                                                          |
-| `(*PublicKey).BytesUncompressed()`   | Returns the 65-byte uncompressed public key encoding.                                                        |
+| API                                                | Description                                                                                                  |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `DigestSize`, `Digest`                             | Define the fixed digest width used by digest-level APIs.                                                     |
+| `SignatureSize`, `Signature`                       | Define the fixed 64-byte `r || s` signature format.                                                          |
+| `RecoverableSignatureSize`, `RecoverableSignature` | Define the fixed 65-byte `r || s || recovery-id` signature format.                                           |
+| `(Signature).Bytes()`                              | Returns the signature as a byte slice for interoperability helpers.                                          |
+| `(RecoverableSignature).Bytes()`                   | Returns the recoverable signature as a byte slice for interoperability helpers.                              |
+| `(RecoverableSignature).Signature()`               | Returns the non-recoverable `Signature` portion.                                                             |
+| `GeneratePrivateKey(reader)`                       | Generates a valid private key from a random source; uses `crypto/rand.Reader` when `reader == nil`.          |
+| `ParsePrivateKey([]byte)`                          | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order. |
+| `(*PrivateKey).Bytes()`                            | Returns the 32-byte private key encoding or `ErrInvalidPrivateKey`.                                          |
+| `(*PrivateKey).Destroy()`                          | Best-effort cleanup of private scalar material and invalidation of the key.                                  |
+| `(*PrivateKey).PublicKey()`                        | Derives the public key with base-point multiplication.                                                       |
+| `(*PrivateKey).SignDigest(Digest)`                 | Creates an RFC6979 deterministic low-S `Signature` over a digest.                                            |
+| `(*PrivateKey).SignRecoverableDigest(Digest)`      | Creates an RFC6979 deterministic low-S `RecoverableSignature`.                                               |
+| `VerifyDigest(pub, digest, sig)`                   | Verifies a 64-byte signature and accepts mathematically valid high-S signatures.                             |
+| `VerifyCanonicalDigest(pub, digest, sig)`          | Verifies a 64-byte signature and rejects high-S signatures.                                                  |
+| `(PublicKey).Prepare()`                            | Builds reusable precomputed tables for repeated verification.                                                |
+| `RecoverDigest(digest, recoverableSig)`            | Recovers the public key from a 65-byte recoverable signature.                                                |
+| `ParsePublicKey([]byte)`                           | Parses a SEC 1 compressed or uncompressed public key.                                                        |
+| `(PublicKey).BytesCompressed()`                    | Returns the 33-byte compressed public key encoding or `ErrInvalidPublicKey`.                                 |
+| `(PublicKey).BytesUncompressed()`                  | Returns the 65-byte uncompressed public key encoding or `ErrInvalidPublicKey`.                               |
 
-## Signature Format
+## Signature Formats
 
-`SignDigest` returns a fixed 65-byte array:
+`Signature` is a fixed 64-byte array:
+
+```text
+0..31   r
+32..63  s
+```
+
+`RecoverableSignature` is a fixed 65-byte array:
 
 ```text
 0..31   r
@@ -87,8 +116,8 @@ func main() {
 
 The low bit of `recovery-id` records the parity of the ephemeral point `R`'s
 y-coordinate. The high bit records whether `R.x` was reconstructed as `r + n`.
-The `s` value is normalized into the low half of the group order, so the
-recovery parity bit may be flipped during normalization.
+The `s` value produced by signing is normalized into the low half of the group
+order, so the recovery parity bit may be flipped during normalization.
 
 ## Development
 
@@ -118,9 +147,11 @@ Generation uses the Docker image `ghcr.io/islishude/fiat-crypto-go-tool`. See
 ## Security Notes
 
 This library implements common secp256k1 ECDSA digest-level APIs, but this
-repository does not claim a third-party security audit. Before using it for
-production funds or high-value keys, validate it against your audit standards,
-test vectors, side-channel requirements, and higher-level protocol rules.
+repository does not claim a third-party security audit. `PrivateKey.Destroy`
+and signing-path cleanup are best-effort only; Go does not guarantee hard memory
+erasure. Before using this library for production funds or high-value keys,
+validate it against your audit standards, test vectors, side-channel
+requirements, and higher-level protocol rules.
 
 ## License
 

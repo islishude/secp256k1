@@ -17,12 +17,12 @@ func TestCrossCheck(t *testing.T) {
 
 	for i := range 100 {
 		t.Run(fmt.Sprintf("round-%d", i), func(t *testing.T) {
-			priv, err := secp256k1.GenerateKey(nil)
+			priv, err := secp256k1.GeneratePrivateKey(nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			var msg [32]byte
+			var msg [secp256k1.DigestSize]byte
 			if _, err := io.ReadFull(rand.Reader, msg[:]); err != nil {
 				t.Fatal(err)
 			}
@@ -31,15 +31,22 @@ func TestCrossCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			recSig, err := priv.SignRecoverableDigest(digest)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-			privBytes := priv.Bytes()
+			privBytes, err := priv.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
 			ethpriv, err := crypto.ToECDSA(privBytes[:])
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			pubBytes := crypto.FromECDSAPub(ethpriv.Public().(*ecdsa.PublicKey))
-			valid := crypto.VerifySignature(pubBytes[:], digest[:], sig[:64])
+			valid := crypto.VerifySignature(pubBytes[:], digest[:], sig.Bytes())
 			if !valid {
 				t.Fatal("invalid signature from geth implementation")
 			}
@@ -49,7 +56,11 @@ func TestCrossCheck(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			valid = secp256k1.VerifyDigest(priv.Public(), digest, [65]byte(sig2))
+			pub, err := priv.PublicKey()
+			if err != nil {
+				t.Fatal(err)
+			}
+			valid = secp256k1.VerifyDigest(pub, digest, secp256k1.Signature(sig2))
 			if !valid {
 				t.Fatal("invalid signature from local implementation")
 			}
@@ -58,11 +69,15 @@ func TestCrossCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			pub, err := secp256k1.RecoverDigest(digest, sig)
+			recovered, err := secp256k1.RecoverDigest(digest, recSig)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if pub.BytesUncompressed() != [65]byte(rec) {
+			recoveredBytes, err := recovered.BytesUncompressed()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if recoveredBytes != secp256k1.RecoverableSignature(rec) {
 				t.Fatal("recovered public key does not match")
 			}
 		})

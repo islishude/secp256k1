@@ -13,7 +13,7 @@ import (
 var (
 	benchFixture = newFixture()
 
-	localSignatureSink  [localsecp256k1.RecoverableSignatureSize]byte
+	localSignatureSink  localsecp256k1.RecoverableSignature
 	decredSignatureSink *decredecdsa.Signature
 	gethSignatureSink   []byte
 	verifySink          bool
@@ -21,11 +21,11 @@ var (
 
 type fixture struct {
 	privateKeyBytes [32]byte
-	digest          [32]byte
+	digest          localsecp256k1.Digest
 
 	localPrivateKey *localsecp256k1.PrivateKey
-	localPublicKey  *localsecp256k1.PublicKey
-	localSignature  [localsecp256k1.RecoverableSignatureSize]byte
+	localPublicKey  localsecp256k1.PublicKey
+	localSignature  localsecp256k1.Signature
 
 	decredPrivateKey *decredsecp256k1.PrivateKey
 	decredPublicKey  *decredsecp256k1.PublicKey
@@ -44,11 +44,14 @@ func newFixture() fixture {
 	}
 	digest := sha256.Sum256([]byte("secp256k1 benchmark digest"))
 
-	localPrivateKey, err := localsecp256k1.NewPrivateKey(privateKeyBytes)
+	localPrivateKey, err := localsecp256k1.ParsePrivateKey(privateKeyBytes[:])
 	if err != nil {
 		panic(err)
 	}
-	localPublicKey := localPrivateKey.Public()
+	localPublicKey, err := localPrivateKey.PublicKey()
+	if err != nil {
+		panic(err)
+	}
 	localSignature, err := localPrivateKey.SignDigest(digest)
 	if err != nil {
 		panic(err)
@@ -88,7 +91,7 @@ func TestBenchmarkFixtures(t *testing.T) {
 	if !benchFixture.decredSignature.Verify(benchFixture.digest[:], benchFixture.decredPublicKey) {
 		t.Fatal("decred signature does not verify")
 	}
-	if !gethsecp256k1.VerifySignature(benchFixture.gethPublicKey, benchFixture.digest[:], benchFixture.gethSignature[:64]) {
+	if !gethsecp256k1.VerifySignature(benchFixture.gethPublicKey, benchFixture.digest[:], benchFixture.gethSignature[:localsecp256k1.SignatureSize]) {
 		t.Fatal("geth signature does not verify")
 	}
 }
@@ -99,7 +102,7 @@ func BenchmarkLocalSign(b *testing.B) {
 	digest := benchFixture.digest
 
 	for b.Loop() {
-		signature, err := privateKey.SignDigest(digest)
+		signature, err := privateKey.SignRecoverableDigest(digest)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -163,7 +166,7 @@ func BenchmarkGethVerify(b *testing.B) {
 	b.ReportAllocs()
 	publicKey := benchFixture.gethPublicKey
 	digest := benchFixture.digest[:]
-	signature := benchFixture.gethSignature[:64]
+	signature := benchFixture.gethSignature[:localsecp256k1.SignatureSize]
 
 	for b.Loop() {
 		verifySink = gethsecp256k1.VerifySignature(publicKey, digest, signature)
