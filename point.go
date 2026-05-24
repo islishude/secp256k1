@@ -310,14 +310,3 @@ func (p *projectivePoint) affine() (field.Element, field.Element, bool) {
 	y.Mul(&p.y, &zInv)
 	return x, y, true
 }
-
-func (p *projectivePoint) jacobian() point {
-	var out point
-	x, y, ok := p.affine()
-	if !ok {
-		out.setInfinity()
-		return out
-	}
-	out.setAffine(&x, &y)
-	return out
-}
