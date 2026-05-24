@@ -130,7 +130,7 @@ func TestDoubleScalarBaseMult(t *testing.T) {
 			p2 := scalarMultAffine(&q, &k2Bytes)
 			var want point
 			want.add(&p1, &p2)
-			got := doubleScalarBaseMult(&k1, &q, &k2)
+			got := doubleScalarBaseMultVartime(&k1, &q, &k2)
 
 			gotX, gotY, gotOK := got.affine()
 			wantX, wantY, wantOK := want.affine()

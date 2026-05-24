@@ -15,6 +15,7 @@ type PublicKey struct {
 	valid       bool
 }
 
+// publicKeyPrecompute stores variable-time verification tables for public input.
 type publicKeyPrecompute struct {
 	wnafTable     [varWNAFTableSize]affinePoint
 	endoWNAFTable [varWNAFTableSize]affinePoint

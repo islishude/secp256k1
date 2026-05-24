@@ -76,13 +76,14 @@ func (k *PrivateKey) signDigest(digest Digest, recoverable bool) (RecoverableSig
 			}
 			recid |= xOverflow << 1
 		}
-		if s.IsHigh() {
-			// Low-S normalization replaces s with n-s. That is equivalent to
-			// using -R, so the y-parity bit must be flipped for recovery.
-			s.Neg(&s)
-			if recoverable {
-				recid ^= 1
-			}
+		// Low-S normalization replaces s with n-s. That is equivalent to
+		// using -R, so the y-parity bit must be flipped for recovery.
+		highS := s.IsHighChoice()
+		var negS scalar.Element
+		negS.Neg(&s)
+		s.Select(&s, &negS, highS)
+		if recoverable {
+			recid ^= byte(highS)
 		}
 
 		var sig RecoverableSignature

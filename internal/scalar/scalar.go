@@ -255,18 +255,14 @@ func (z *Element) IsZero() bool {
 
 // IsHigh reports whether z is greater than n/2.
 func (z *Element) IsHigh() bool {
+	return z.IsHighChoice() == 1
+}
+
+// IsHighChoice returns 1 if z is greater than n/2, and 0 otherwise.
+func (z *Element) IsHighChoice() uint64 {
 	var out fiat.NonMontgomeryDomainFieldElement
 	fiat.FromMontgomery(&out, &z.x)
-	if out[3] != halfOrder0 {
-		return out[3] > halfOrder0
-	}
-	if out[2] != halfOrder1 {
-		return out[2] > halfOrder1
-	}
-	if out[1] != halfOrder2 {
-		return out[1] > halfOrder2
-	}
-	return out[0] > halfOrder3
+	return wordsGreaterThanHalfOrder([4]uint64{out[0], out[1], out[2], out[3]})
 }
 
 // Equal reports whether z and x are the same scalar.
@@ -276,23 +272,37 @@ func (z *Element) Equal(x *Element) bool {
 
 // IsHighBytes reports whether b is greater than n/2.
 func IsHighBytes(b *[Size]byte) bool {
-	x0 := binary.BigEndian.Uint64(b[0:8])
-	if x0 != halfOrder0 {
-		return x0 > halfOrder0
-	}
+	return wordsGreaterThanHalfOrder(bytesToWords(b)) == 1
+}
 
-	x1 := binary.BigEndian.Uint64(b[8:16])
-	if x1 != halfOrder1 {
-		return x1 > halfOrder1
-	}
+func wordsGreaterThanHalfOrder(words [4]uint64) uint64 {
+	gt := greaterThanWord(words[3], halfOrder0)
+	eq := equalWord(words[3], halfOrder0)
+	gt |= eq & greaterThanWord(words[2], halfOrder1)
+	eq &= equalWord(words[2], halfOrder1)
+	gt |= eq & greaterThanWord(words[1], halfOrder2)
+	eq &= equalWord(words[1], halfOrder2)
+	gt |= eq & greaterThanWord(words[0], halfOrder3)
+	return gt
+}
 
-	x2 := binary.BigEndian.Uint64(b[16:24])
-	if x2 != halfOrder2 {
-		return x2 > halfOrder2
-	}
+func greaterThanWord(x, y uint64) uint64 {
+	_, borrow := bits.Sub64(y, x, 0)
+	return borrow
+}
 
-	x3 := binary.BigEndian.Uint64(b[24:32])
-	return x3 > halfOrder3
+func equalWord(x, y uint64) uint64 {
+	v := x ^ y
+	return ((v | (0 - v)) >> 63) ^ 1
+}
+
+// Select assigns z = x when choice == 0 and z = y when choice == 1.
+func (z *Element) Select(x, y *Element, choice uint64) *Element {
+	mask := uint64(0) - (choice & 1)
+	for i := range z.x {
+		z.x[i] = (x.x[i] &^ mask) | (y.x[i] & mask)
+	}
+	return z
 }
 
 // Add assigns z = x + y mod n.

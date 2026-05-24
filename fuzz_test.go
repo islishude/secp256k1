@@ -186,6 +186,45 @@ func FuzzRecoverDigest(f *testing.F) {
 	})
 }
 
+func FuzzParseDERSignature(f *testing.F) {
+	privBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
+	priv, err := ParsePrivateKey(privBytes[:])
+	if err != nil {
+		f.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("fuzz secp256k1 der"))
+	sig, err := priv.SignDigest(digest)
+	if err != nil {
+		f.Fatal(err)
+	}
+	der, err := sig.BytesDER()
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	f.Add(der)
+	f.Add([]byte{})
+	f.Add([]byte{0x30, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01})
+	f.Add([]byte{0x30, 0x07, 0x02, 0x02, 0x00, 0x01, 0x02, 0x01, 0x01})
+
+	f.Fuzz(func(t *testing.T, encoded []byte) {
+		sig, err := ParseDERSignature(encoded)
+		if err != nil {
+			return
+		}
+		der, err := sig.BytesDER()
+		if err != nil {
+			t.Fatalf("parsed DER signature did not re-encode: %v", err)
+		}
+		if !bytes.Equal(der, encoded) {
+			t.Fatalf("DER parse accepted non-canonical encoding\n got %x\nwant %x", encoded, der)
+		}
+		if _, err := ParseSignature(sig[:]); err != nil {
+			t.Fatalf("parsed DER signature is not valid compact signature: %v", err)
+		}
+	})
+}
+
 func addSignVerifySeed(f *testing.F, key [PrivateKeySize]byte, digest Digest) {
 	seed := make([]byte, PrivateKeySize+DigestSize)
 	copy(seed[:PrivateKeySize], key[:])

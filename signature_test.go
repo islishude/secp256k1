@@ -211,6 +211,131 @@ func TestSignatureRejectsInvalidScalars(t *testing.T) {
 	}
 }
 
+func TestSignatureCompactAndDERParsing(t *testing.T) {
+	privBytes := must32("1e99423a4ed27608a15a2616b4c1b5d1f765a9f6a5f5a2d8e81f6f8a6a88b8d8")
+	priv, err := ParsePrivateKey(privBytes[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	pub, err := priv.PublicKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte("secp256k1 der signature"))
+	sig, err := priv.SignDigest(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recSig, err := priv.SignRecoverableDigest(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsedCompact, err := ParseSignature(sig[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsedCompact != sig {
+		t.Fatal("compact signature parse mismatch")
+	}
+	parsedRecoverable, err := ParseRecoverableSignature(recSig[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsedRecoverable != recSig {
+		t.Fatal("recoverable signature parse mismatch")
+	}
+
+	der, err := sig.BytesDER()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsedDER, err := ParseDERSignature(der)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsedDER != sig {
+		t.Fatal("DER signature parse mismatch")
+	}
+	derAgain, err := parsedDER.BytesDER()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(derAgain, der) {
+		t.Fatalf("DER did not round trip canonically\n got %x\nwant %x", derAgain, der)
+	}
+
+	highS := sig
+	makeSignatureHighS(&highS)
+	highDER, err := highS.BytesDER()
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsedHigh, err := ParseDERSignature(highDER)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !VerifyDigest(pub, digest, parsedHigh) {
+		t.Fatal("parsed high-S DER signature did not verify permissively")
+	}
+	if VerifyCanonicalDigest(pub, digest, parsedHigh) {
+		t.Fatal("parsed high-S DER signature canonical-verified")
+	}
+}
+
+func TestParseDERSignatureRejectsInvalidEncoding(t *testing.T) {
+	rEqualsOrder := append([]byte{0x30, 0x26, 0x02, 0x21, 0x00}, scalar.Order[:]...)
+	rEqualsOrder = append(rEqualsOrder, 0x02, 0x01, 0x01)
+
+	tests := []struct {
+		name string
+		der  []byte
+	}{
+		{name: "empty", der: nil},
+		{name: "bad sequence tag", der: []byte{0x31, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01}},
+		{name: "bad sequence length", der: []byte{0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01}},
+		{name: "long form length", der: []byte{0x30, 0x81, 0x06, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01}},
+		{name: "trailing data", der: []byte{0x30, 0x07, 0x02, 0x01, 0x01, 0x02, 0x01, 0x01, 0x00}},
+		{name: "zero length r", der: []byte{0x30, 0x05, 0x02, 0x00, 0x02, 0x01, 0x01}},
+		{name: "negative r", der: []byte{0x30, 0x06, 0x02, 0x01, 0x80, 0x02, 0x01, 0x01}},
+		{name: "nonminimal r", der: []byte{0x30, 0x07, 0x02, 0x02, 0x00, 0x01, 0x02, 0x01, 0x01}},
+		{name: "zero r", der: []byte{0x30, 0x06, 0x02, 0x01, 0x00, 0x02, 0x01, 0x01}},
+		{name: "r equals order", der: rEqualsOrder},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if sig, err := ParseDERSignature(tc.der); err == nil {
+				t.Fatalf("ParseDERSignature(%x) = %x, want error", tc.der, sig)
+			}
+		})
+	}
+}
+
+func TestParseSignatureRejectsInvalidEncoding(t *testing.T) {
+	if _, err := ParseSignature(nil); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatal("accepted empty compact signature")
+	}
+	var sig Signature
+	sig[31] = 1
+	sig[63] = 1
+	if _, err := ParseSignature(sig[:SignatureSize-1]); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatal("accepted short compact signature")
+	}
+	copy(sig[:32], scalar.Order[:])
+	if _, err := ParseSignature(sig[:]); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatal("accepted compact signature with r equal to order")
+	}
+
+	var rec RecoverableSignature
+	rec[31] = 1
+	rec[63] = 1
+	rec[recoverableSignatureRecIDAt] = 4
+	if _, err := ParseRecoverableSignature(rec[:]); !errors.Is(err, ErrInvalidSignature) {
+		t.Fatal("accepted recoverable signature with invalid recovery id")
+	}
+}
+
 func TestRecoverDigestRejectsOverflowXCoordinate(t *testing.T) {
 	pMinusOrder := new(big.Int).Sub(new(big.Int).Set(bigP), new(big.Int).SetBytes(scalar.Order[:]))
 	rBytes := bigTo32(pMinusOrder)

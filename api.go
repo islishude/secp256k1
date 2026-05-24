@@ -38,7 +38,9 @@ func (sig Signature) Bytes() []byte {
 	return sig[:]
 }
 
-// Digest is the fixed-width message digest accepted by the digest-level ECDSA APIs.
+// Digest is the fixed-width message digest accepted by the digest-level ECDSA
+// APIs. Callers that start from arbitrary-length messages or digests must apply
+// the ECDSA message representative rules before constructing a Digest.
 type Digest = [DigestSize]byte
 
 // RecoverableSignature is a fixed-width ECDSA signature encoded as

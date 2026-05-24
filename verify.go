@@ -4,12 +4,16 @@ import "github.com/islishude/secp256k1/internal/scalar"
 
 // VerifyDigest reports whether sig is a mathematically valid ECDSA signature for
 // digest under pub. High-S signatures are accepted by this function.
+//
+// Verification only uses public inputs and may use variable-time algorithms.
 func VerifyDigest(pub PublicKey, digest Digest, sig Signature) bool {
 	return pub.verifyDigest(digest, sig, false)
 }
 
 // VerifyCanonicalDigest reports whether sig is a valid low-S ECDSA signature for
 // digest under pub.
+//
+// Verification only uses public inputs and may use variable-time algorithms.
 func VerifyCanonicalDigest(pub PublicKey, digest Digest, sig Signature) bool {
 	return pub.verifyDigest(digest, sig, true)
 }
@@ -30,7 +34,7 @@ func (p PublicKey) verifyDigest(digest Digest, sig Signature, requireLowS bool) 
 	u2.Mul(&r, &w)
 
 	// ECDSA verification checks that x((e/s)G + (r/s)Q) mod n equals r.
-	sum := doubleScalarBaseMultPrecomputed(&u1, &u2, &p.precomputed.wnafTable, &p.precomputed.endoWNAFTable)
+	sum := doubleScalarBaseMultPrecomputedVartime(&u1, &u2, &p.precomputed.wnafTable, &p.precomputed.endoWNAFTable)
 	if sum.isInfinity() {
 		return false
 	}

@@ -142,10 +142,34 @@ func TestIsHigh(t *testing.T) {
 			if got := x.IsHigh(); got != tc.want {
 				t.Fatalf("IsHigh(%x) = %v, want %v", tc.in, got, tc.want)
 			}
+			if got := x.IsHighChoice() == 1; got != tc.want {
+				t.Fatalf("IsHighChoice(%x) = %v, want %v", tc.in, got, tc.want)
+			}
 			if got := IsHighBytes(&tc.in); got != tc.want {
 				t.Fatalf("IsHighBytes(%x) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestSelect(t *testing.T) {
+	oneBytes := fromHex("01")
+	twoBytes := fromHex("02")
+	var one, two, got Element
+	if !one.SetBytes(&oneBytes) || !two.SetBytes(&twoBytes) {
+		t.Fatal("SetBytes failed")
+	}
+	got.Select(&one, &two, 0)
+	if got.Bytes() != oneBytes {
+		t.Fatal("Select choice 0 did not select first scalar")
+	}
+	got.Select(&one, &two, 1)
+	if got.Bytes() != twoBytes {
+		t.Fatal("Select choice 1 did not select second scalar")
+	}
+	got.Select(&one, &two, 3)
+	if got.Bytes() != twoBytes {
+		t.Fatal("Select did not mask choice to low bit")
 	}
 }
 

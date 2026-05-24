@@ -52,19 +52,21 @@ func scalarMultAffine(p *point, k *[32]byte) point {
 	return r
 }
 
-func doubleScalarBaseMult(k1 *scalar.Element, p2 *point, k2 *scalar.Element) point {
+func doubleScalarBaseMultVartime(k1 *scalar.Element, p2 *point, k2 *scalar.Element) point {
 	p2Table := newAffineOddTable(p2)
 	p2EndoTable := newEndomorphismWNAFTable(&p2Table)
-	return doubleScalarBaseMultPrecomputed(k1, k2, &p2Table, &p2EndoTable)
+	return doubleScalarBaseMultPrecomputedVartime(k1, k2, &p2Table, &p2EndoTable)
 }
 
-func doubleScalarBaseMultPrecomputed(k1, k2 *scalar.Element, p2Table, p2EndoTable *[varWNAFTableSize]affinePoint) point {
+// doubleScalarBaseMultPrecomputedVartime computes k1*G + k2*P with variable-time
+// wNAF and table lookups. It is only for verification/recovery inputs.
+func doubleScalarBaseMultPrecomputedVartime(k1, k2 *scalar.Element, p2Table, p2EndoTable *[varWNAFTableSize]affinePoint) point {
 	k1a, k1b := scalar.SplitEndomorphism(k1)
 	k2a, k2b := scalar.SplitEndomorphism(k2)
-	k1aNAF, k1aLen, k1aSign := signedWNAF(&k1a, generatorWNAFWindow)
-	k1bNAF, k1bLen, k1bSign := signedWNAF(&k1b, generatorWNAFWindow)
-	k2aNAF, k2aLen, k2aSign := signedWNAF(&k2a, varWNAFWindow)
-	k2bNAF, k2bLen, k2bSign := signedWNAF(&k2b, varWNAFWindow)
+	k1aNAF, k1aLen, k1aSign := signedWNAFVartime(&k1a, generatorWNAFWindow)
+	k1bNAF, k1bLen, k1bSign := signedWNAFVartime(&k1b, generatorWNAFWindow)
+	k2aNAF, k2aLen, k2aSign := signedWNAFVartime(&k2a, varWNAFWindow)
+	k2bNAF, k2bLen, k2bSign := signedWNAFVartime(&k2b, varWNAFWindow)
 	n := max(k1aLen, k1bLen, k2aLen, k2bLen)
 	k1aDigits := k1aNAF[:n]
 	k1bDigits := k1bNAF[:n]
@@ -75,10 +77,10 @@ func doubleScalarBaseMultPrecomputed(k1, k2 *scalar.Element, p2Table, p2EndoTabl
 	r.setInfinity()
 	for i := n - 1; i >= 0; i-- {
 		r.double(&r)
-		addGeneratorWNAFPoint(&r, &generatorWNAFTable, k1aDigits[i]*k1aSign)
-		addGeneratorWNAFPoint(&r, &generatorEndoWNAFTable, k1bDigits[i]*k1bSign)
-		addVariableWNAFPoint(&r, p2Table, k2aDigits[i]*k2aSign)
-		addVariableWNAFPoint(&r, p2EndoTable, k2bDigits[i]*k2bSign)
+		addGeneratorWNAFPointVartime(&r, &generatorWNAFTable, k1aDigits[i]*k1aSign)
+		addGeneratorWNAFPointVartime(&r, &generatorEndoWNAFTable, k1bDigits[i]*k1bSign)
+		addVariableWNAFPointVartime(&r, p2Table, k2aDigits[i]*k2aSign)
+		addVariableWNAFPointVartime(&r, p2EndoTable, k2bDigits[i]*k2bSign)
 	}
 	return r
 }

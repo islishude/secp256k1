@@ -2,6 +2,12 @@ package secp256k1
 
 import "github.com/islishude/secp256k1/internal/field"
 
+const (
+	secp256k1A uint64 = 0
+	secp256k1B uint64 = 7
+	secp256k1H uint64 = 1
+)
+
 var (
 	gxBytes = [32]byte{
 		0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac,
@@ -16,7 +22,7 @@ var (
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
 	endoBeta               = newEndomorphismBeta()
-	secp256k1B3            = fieldElementUint64(21)
+	secp256k1B3            = fieldElementUint64(3 * secp256k1B)
 	generator              = newGeneratorPoint()
 	generatorAffineTable   = newGeneratorAffineTable()
 	generatorWNAFTable     = newGeneratorWNAFTable()
@@ -58,7 +64,7 @@ func isOnCurve(x, y *field.Element) bool {
 	yy.Square(y)
 	xx.Square(x)
 	rhs.Mul(&xx, x)
-	seven.SetUint64(7)
+	seven.SetUint64(secp256k1B)
 	rhs.Add(&rhs, &seven)
 	return yy.Equal(&rhs)
 }
@@ -79,7 +85,7 @@ func curveYFromX(x *field.Element, wantOdd bool) (field.Element, bool) {
 	var y, rhs, x2, seven field.Element
 	x2.Square(x)
 	rhs.Mul(&x2, x)
-	seven.SetUint64(7)
+	seven.SetUint64(secp256k1B)
 	rhs.Add(&rhs, &seven)
 	if !y.Sqrt(&rhs) {
 		return field.Element{}, false

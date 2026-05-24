@@ -14,7 +14,7 @@ const (
 	generatorWNAFSize   = 1 << (generatorWNAFWindow - 2)
 )
 
-func signedWNAF(k *scalar.Element, window int) ([257]int8, int, int8) {
+func signedWNAFVartime(k *scalar.Element, window int) ([257]int8, int, int8) {
 	sign := int8(1)
 	kBytes := k.Bytes()
 	if scalar.IsHighBytes(&kBytes) {
@@ -23,11 +23,11 @@ func signedWNAF(k *scalar.Element, window int) ([257]int8, int, int8) {
 		kBytes = neg.Bytes()
 		sign = -1
 	}
-	naf, length := wnaf(&kBytes, window)
+	naf, length := wnafVartime(&kBytes, window)
 	return naf, length, sign
 }
 
-func addVariableWNAFPoint(r *point, table *[varWNAFTableSize]affinePoint, digit int8) {
+func addVariableWNAFPointVartime(r *point, table *[varWNAFTableSize]affinePoint, digit int8) {
 	if digit == 0 {
 		return
 	}
@@ -43,7 +43,7 @@ func addVariableWNAFPoint(r *point, table *[varWNAFTableSize]affinePoint, digit 
 	r.addAffine(r, &entry.x, &y)
 }
 
-func addGeneratorWNAFPoint(r *point, table *[generatorWNAFSize]affinePoint, digit int8) {
+func addGeneratorWNAFPointVartime(r *point, table *[generatorWNAFSize]affinePoint, digit int8) {
 	if digit == 0 {
 		return
 	}
@@ -59,7 +59,7 @@ func addGeneratorWNAFPoint(r *point, table *[generatorWNAFSize]affinePoint, digi
 	r.addAffine(r, &entry.x, &y)
 }
 
-func wnaf(k *[32]byte, window int) ([257]int8, int) {
+func wnafVartime(k *[32]byte, window int) ([257]int8, int) {
 	words := scalarWords(k)
 	var out [257]int8
 	length := 0
