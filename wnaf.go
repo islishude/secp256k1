@@ -1,8 +1,6 @@
 package secp256k1
 
 import (
-	"encoding/binary"
-
 	"github.com/islishude/secp256k1/internal/field"
 	"github.com/islishude/secp256k1/internal/scalar"
 )
@@ -16,14 +14,14 @@ const (
 
 func signedWNAFVartime(k *scalar.Element, window int) ([257]int16, int, int16) {
 	sign := int16(1)
-	kBytes := k.Bytes()
-	if scalar.IsHighBytes(&kBytes) {
+	words := k.Words()
+	if scalar.IsHighWords(words) {
 		var neg scalar.Element
 		neg.Neg(k)
-		kBytes = neg.Bytes()
+		words = neg.Words()
 		sign = -1
 	}
-	naf, length := wnafVartime(&kBytes, window)
+	naf, length := wnafVartime(&words, window)
 	return naf, length, sign
 }
 
@@ -59,36 +57,26 @@ func addGeneratorWNAFPointVartime(r *point, table *[generatorWNAFSize]affinePoin
 	r.addAffine(r, &entry.x, &y)
 }
 
-func wnafVartime(k *[32]byte, window int) ([257]int16, int) {
-	words := scalarWords(k)
+func wnafVartime(words *[4]uint64, window int) ([257]int16, int) {
 	var out [257]int16
 	length := 0
-	for i := 0; i < len(out) && !isZeroWords(&words); i++ {
-		if words[0]&1 == 1 {
-			digit := int(words[0] & ((1 << window) - 1))
+	for i := 0; i < len(out) && !isZeroWords(words); i++ {
+		if (*words)[0]&1 == 1 {
+			digit := int((*words)[0] & ((1 << window) - 1))
 			if digit > 1<<(window-1) {
 				digit -= 1 << window
 			}
 			out[i] = int16(digit)
 			if digit > 0 {
-				subSmall(&words, uint64(digit))
+				subSmall(words, uint64(digit))
 			} else {
-				addSmall(&words, uint64(-digit))
+				addSmall(words, uint64(-digit))
 			}
 		}
-		shr1(&words)
+		shr1(words)
 		length = i + 1
 	}
 	return out, length
-}
-
-func scalarWords(k *[32]byte) [4]uint64 {
-	return [4]uint64{
-		binary.BigEndian.Uint64(k[24:32]),
-		binary.BigEndian.Uint64(k[16:24]),
-		binary.BigEndian.Uint64(k[8:16]),
-		binary.BigEndian.Uint64(k[0:8]),
-	}
 }
 
 func isZeroWords(words *[4]uint64) bool {

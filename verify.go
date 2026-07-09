@@ -49,20 +49,18 @@ func jacobianXEqualsScalar(p *point, x *scalar.Element) bool {
 		return false
 	}
 
-	xBytes := x.Bytes()
-	if jacobianXEqualsFieldElement(p, &xBytes) {
+	xWords := x.Words()
+	if jacobianXEqualsFieldElementWords(p, &xWords) {
 		return true
 	}
 
-	xPlusOrder, ok := scalar.AddOrder(xBytes)
-	return ok && jacobianXEqualsFieldElement(p, &xPlusOrder)
+	xPlusOrder, ok := scalar.AddOrderWords(xWords)
+	return ok && jacobianXEqualsFieldElementWords(p, &xPlusOrder)
 }
 
-func jacobianXEqualsFieldElement(p *point, xBytes *[field.Size]byte) bool {
+func jacobianXEqualsFieldElementWords(p *point, xWords *[4]uint64) bool {
 	var x, z2, expected field.Element
-	if !x.SetBytes(xBytes) {
-		return false
-	}
+	x.SetNonMontgomeryWords(*xWords)
 	z2.Square(&p.z)
 	expected.Mul(&x, &z2)
 	return expected.Equal(&p.x)

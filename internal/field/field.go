@@ -123,8 +123,8 @@ func (z *Element) IsZero() bool {
 
 // IsOdd reports whether z's canonical integer encoding is odd.
 func (z *Element) IsOdd() bool {
-	b := z.Bytes()
-	return b[Size-1]&1 == 1
+	words := z.NonMontgomeryWords()
+	return words[0]&1 == 1
 }
 
 // Equal reports whether z and x are the same field element.
@@ -192,4 +192,13 @@ func (z *Element) Sqrt(x *Element) bool {
 	// Re-square the candidate because non-residues also produce a field value.
 	check.Square(z)
 	return check.Equal(x)
+}
+
+// SetNonMontgomeryWords assigns z = canonical little-endian non-Montgomery words.
+func (z *Element) SetNonMontgomeryWords(words [4]uint64) *Element {
+	in := fiat.NonMontgomeryDomainFieldElement{
+		words[0], words[1], words[2], words[3],
+	}
+	fiat.ToMontgomery(&z.x, &in)
+	return z
 }

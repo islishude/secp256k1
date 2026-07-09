@@ -234,6 +234,11 @@ func (z *Element) SetFieldElementModOrder(x *field.Element) *Element {
 	return z.setWordsUnchecked(reduceWordsModOrder(x.NonMontgomeryWords()))
 }
 
+// SetWords assigns z from canonical non-Montgomery little-endian words.
+func (z *Element) SetWords(words [4]uint64) *Element {
+	return z.setWordsUnchecked(words)
+}
+
 // Bytes returns the canonical 32-byte big-endian encoding of z.
 func (z *Element) Bytes() [Size]byte {
 	var out [Size]byte
@@ -260,14 +265,25 @@ func (z *Element) IsHigh() bool {
 
 // IsHighChoice returns 1 if z is greater than n/2, and 0 otherwise.
 func (z *Element) IsHighChoice() uint64 {
-	var out fiat.NonMontgomeryDomainFieldElement
-	fiat.FromMontgomery(&out, &z.x)
-	return wordsGreaterThanHalfOrder([4]uint64{out[0], out[1], out[2], out[3]})
+	return wordsGreaterThanHalfOrder(z.Words())
+}
+
+// IsHighWords reports whether a canonical non-Montgomery little-endian scalar
+// word array is greater than n/2.
+func IsHighWords(words [4]uint64) bool {
+	return wordsGreaterThanHalfOrder(words) == 1
 }
 
 // Equal reports whether z and x are the same scalar.
 func (z *Element) Equal(x *Element) bool {
 	return z.x == x.x
+}
+
+// Words returns the canonical non-Montgomery little-endian limbs.
+func (z *Element) Words() [4]uint64 {
+	var out fiat.NonMontgomeryDomainFieldElement
+	fiat.FromMontgomery(&out, &z.x)
+	return [4]uint64{out[0], out[1], out[2], out[3]}
 }
 
 // IsHighBytes reports whether b is greater than n/2.
@@ -411,13 +427,7 @@ func mul512Rsh320Round(n1Digits, n2Digits [4]uint64) Element {
 }
 
 func elementWords(k *Element) [4]uint64 {
-	b := k.Bytes()
-	return [4]uint64{
-		binary.BigEndian.Uint64(b[24:32]),
-		binary.BigEndian.Uint64(b[16:24]),
-		binary.BigEndian.Uint64(b[8:16]),
-		binary.BigEndian.Uint64(b[0:8]),
-	}
+	return k.Words()
 }
 
 func mulAdd64(digit1, digit2, m uint64) (hi, lo uint64) {
@@ -438,33 +448,43 @@ func mulAdd64Carry(digit1, digit2, m, c uint64) (hi, lo uint64) {
 
 // AddOrder returns r + n and whether the result is less than p - n.
 func AddOrder(r [32]byte) ([32]byte, bool) {
-	x0 := binary.BigEndian.Uint64(r[0:8])
-	x1 := binary.BigEndian.Uint64(r[8:16])
-	x2 := binary.BigEndian.Uint64(r[16:24])
-	x3 := binary.BigEndian.Uint64(r[24:32])
+	return wordsToBytesWithAddOrder(bytesToWords(&r))
+}
+
+// AddOrderWords returns r + n and whether the result is less than p - n.
+func AddOrderWords(r [4]uint64) ([4]uint64, bool) {
+	return wordsWithAddOrder(r)
+}
+
+func wordsToBytesWithAddOrder(r [4]uint64) ([32]byte, bool) {
+	out, ok := wordsWithAddOrder(r)
+	return wordsToBytes(out), ok
+}
+
+func wordsWithAddOrder(r [4]uint64) ([4]uint64, bool) {
+	x0 := r[0]
+	x1 := r[1]
+	x2 := r[2]
+	x3 := r[3]
 
 	var carry uint64
 
-	y3, carry := bits.Add64(x3, orderLimb3, 0)
-	y2, carry := bits.Add64(x2, orderLimb2, carry)
-	y1, carry := bits.Add64(x1, orderLimb1, carry)
-	y0, _ := bits.Add64(x0, orderLimb0, carry)
+	y0, carry := bits.Add64(x0, orderLimb3, 0)
+	y1, carry := bits.Add64(x1, orderLimb2, carry)
+	y2, carry := bits.Add64(x2, orderLimb1, carry)
+	y3, _ := bits.Add64(x3, orderLimb0, carry)
 
-	var out [32]byte
-	binary.BigEndian.PutUint64(out[0:8], y0)
-	binary.BigEndian.PutUint64(out[8:16], y1)
-	binary.BigEndian.PutUint64(out[16:24], y2)
-	binary.BigEndian.PutUint64(out[24:32], y3)
+	out := [4]uint64{y0, y1, y2, y3}
 
 	// ok iff r < p - n.
 	//
 	// This also implies no carry from r + n, because:
 	// p - n < 2^256 - n.
 	var borrow uint64
-	_, borrow = bits.Sub64(x3, fieldMinusOrder3, 0)
-	_, borrow = bits.Sub64(x2, fieldMinusOrder2, borrow)
-	_, borrow = bits.Sub64(x1, fieldMinusOrder1, borrow)
-	_, borrow = bits.Sub64(x0, fieldMinusOrder0, borrow)
+	_, borrow = bits.Sub64(x0, fieldMinusOrder3, 0)
+	_, borrow = bits.Sub64(x1, fieldMinusOrder2, borrow)
+	_, borrow = bits.Sub64(x2, fieldMinusOrder1, borrow)
+	_, borrow = bits.Sub64(x3, fieldMinusOrder0, borrow)
 
 	return out, borrow == 1
 }
