@@ -26,13 +26,13 @@ var curves = []struct {
 	modulus string
 }{
 	{
-		dir:     "secp256k1montgomery",
-		pkg:     "secp256k1montgomery",
+		dir:     "basefield",
+		pkg:     "basefield",
 		modulus: "2^256 - 2^32 - 977",
 	},
 	{
-		dir:     "secp256k1montgomeryscalar",
-		pkg:     "secp256k1montgomeryscalar",
+		dir:     "scalarfield",
+		pkg:     "scalarfield",
 		modulus: "2^256 - 432420386565659656852420866394968145599",
 	},
 }

@@ -3,7 +3,7 @@ package field
 import (
 	"encoding/binary"
 
-	fiat "github.com/islishude/secp256k1/internal/fiat/secp256k1montgomery"
+	fiat "github.com/islishude/secp256k1/internal/fiat/basefield"
 )
 
 // Size is the byte length of a secp256k1 field element.

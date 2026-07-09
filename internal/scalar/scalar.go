@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"math/bits"
 
-	fiat "github.com/islishude/secp256k1/internal/fiat/secp256k1montgomeryscalar"
+	fiat "github.com/islishude/secp256k1/internal/fiat/scalarfield"
 	"github.com/islishude/secp256k1/internal/field"
 )
 
