@@ -41,36 +41,36 @@ go test -bench=. -benchmem -count=5
 
 | Implementation | Run 1 ns/op | Run 2 ns/op | Run 3 ns/op | Run 4 ns/op | Run 5 ns/op | Avg ns/op | B/op | allocs/op |
 | -------------- | ----------: | ----------: | ----------: | ----------: | ----------: | --------: | ---: | --------: |
-| Local          |       28167 |       28158 |       28094 |       28125 |       28208 |     28150 |    0 |         0 |
-| Decred         |       32248 |       32481 |       32108 |       32271 |       32198 |     32261 | 1512 |        28 |
+| Local          |       28308 |       28226 |       28331 |       28345 |       28799 |     28402 |    0 |         0 |
+| Decred         |       32841 |       33431 |       32881 |       32946 |       32900 |     33000 | 1512 |        28 |
 
 ## Recoverable Sign Results
 
 | Implementation | Run 1 ns/op | Run 2 ns/op | Run 3 ns/op | Run 4 ns/op | Run 5 ns/op | Avg ns/op | B/op | allocs/op |
 | -------------- | ----------: | ----------: | ----------: | ----------: | ----------: | --------: | ---: | --------: |
-| Local          |       28383 |       28206 |       28133 |       28111 |       28239 |     28214 |    0 |         0 |
-| Decred         |       32474 |       32345 |       32403 |       32377 |       32415 |     32403 | 1592 |        29 |
-| Geth           |       15817 |       15861 |       15871 |       15868 |       15864 |     15856 |  164 |         3 |
+| Local          |       29253 |       29203 |       28680 |       28768 |       28913 |     28963 |    0 |         0 |
+| Decred         |       33393 |       33388 |       33694 |       32825 |       33765 |     33413 | 1592 |        29 |
+| Geth           |       16021 |       15986 |       15928 |       15982 |       16134 |     16010 |  164 |         3 |
 
 ## Verify Results
 
 | Implementation | Run 1 ns/op | Run 2 ns/op | Run 3 ns/op | Run 4 ns/op | Run 5 ns/op | Avg ns/op | B/op | allocs/op |
 | -------------- | ----------: | ----------: | ----------: | ----------: | ----------: | --------: | ---: | --------: |
-| Local          |       36672 |       36678 |       36675 |       36695 |       36660 |     36676 |    0 |         0 |
-| Decred         |      115510 |      115552 |      114880 |      114773 |      112786 |    114700 |  568 |        12 |
-| Geth           |       18459 |       18579 |       18475 |       18544 |       18289 |     18469 |    0 |         0 |
+| Local          |       36146 |       36400 |       35774 |       35868 |       35735 |     35985 |    0 |         0 |
+| Decred         |      115670 |      112606 |      114400 |      113454 |      112438 |    113714 |  568 |        12 |
+| Geth           |       18541 |       18862 |       18896 |       18673 |       18840 |     18762 |    0 |         0 |
 
 ## Conclusions
 
 - Geth is the fastest implementation for recoverable signing and verification
   on this machine.
-- Local compact signing is about 1.15x faster than Decred compact signing while
+- Local compact signing is about 1.16x faster than Decred compact signing while
   using zero benchmark-time allocations.
 - Local recoverable signing is about 1.15x faster than Decred recoverable
   signing while using zero benchmark-time allocations.
-- Local verification is about 3.13x faster than Decred verification while using
+- Local verification is about 3.16x faster than Decred verification while using
   zero benchmark-time allocations.
-- Local verification is about 1.98x slower than geth verification on this
+- Local verification is about 1.92x slower than geth verification on this
   machine.
 
 ## Raw Output
@@ -80,46 +80,46 @@ goos: darwin
 goarch: arm64
 pkg: github.com/islishude/secp256k1/benchmark
 cpu: Apple M3 Max
-BenchmarkLocalSignCompact-16          	   42482 	    28167 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignCompact-16          	   42135 	    28158 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignCompact-16          	   42540 	    28094 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignCompact-16          	   42669 	    28125 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignCompact-16          	   42626 	    28208 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignRecoverable-16      	   42589 	    28383 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignRecoverable-16      	   42580 	    28206 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignRecoverable-16      	   42637 	    28133 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignRecoverable-16      	   42844 	    28111 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalSignRecoverable-16      	   42763 	    28239 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalVerify-16               	   32774 	    36672 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalVerify-16               	   32726 	    36678 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalVerify-16               	   32749 	    36675 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalVerify-16               	   32698 	    36695 ns/op	       0 B/op	       0 allocs/op
-BenchmarkLocalVerify-16               	   32683 	    36660 ns/op	       0 B/op	       0 allocs/op
-BenchmarkDecredSignCompact-16         	   36879 	    32248 ns/op	 1512 B/op	      28 allocs/op
-BenchmarkDecredSignCompact-16         	   37302 	    32481 ns/op	 1512 B/op	      28 allocs/op
-BenchmarkDecredSignCompact-16         	   37440 	    32108 ns/op	 1512 B/op	      28 allocs/op
-BenchmarkDecredSignCompact-16         	   37150 	    32271 ns/op	 1512 B/op	      28 allocs/op
-BenchmarkDecredSignCompact-16         	   37358 	    32198 ns/op	 1512 B/op	      28 allocs/op
-BenchmarkDecredSignRecoverable-16     	   37281 	    32474 ns/op	 1592 B/op	      29 allocs/op
-BenchmarkDecredSignRecoverable-16     	   37431 	    32345 ns/op	 1592 B/op	      29 allocs/op
-BenchmarkDecredSignRecoverable-16     	   37630 	    32403 ns/op	 1592 B/op	      29 allocs/op
-BenchmarkDecredSignRecoverable-16     	   36631 	    32377 ns/op	 1592 B/op	      29 allocs/op
-BenchmarkDecredSignRecoverable-16     	   36922 	    32415 ns/op	 1592 B/op	      29 allocs/op
-BenchmarkDecredVerify-16              	  10000 	   115510 ns/op	    568 B/op	      12 allocs/op
-BenchmarkDecredVerify-16              	   9859 	   115552 ns/op	    568 B/op	      12 allocs/op
-BenchmarkDecredVerify-16              	   9964 	   114880 ns/op	    568 B/op	      12 allocs/op
-BenchmarkDecredVerify-16              	  10000 	   114773 ns/op	    568 B/op	      12 allocs/op
-BenchmarkDecredVerify-16              	  10000 	   112786 ns/op	    568 B/op	      12 allocs/op
-BenchmarkGethSignRecoverable-16       	   75866 	    15817 ns/op	    164 B/op	       3 allocs/op
-BenchmarkGethSignRecoverable-16       	   75585 	    15861 ns/op	    164 B/op	       3 allocs/op
-BenchmarkGethSignRecoverable-16       	   75505 	    15871 ns/op	    164 B/op	       3 allocs/op
-BenchmarkGethSignRecoverable-16       	   75751 	    15868 ns/op	    164 B/op	       3 allocs/op
-BenchmarkGethSignRecoverable-16       	   75440 	    15864 ns/op	    164 B/op	       3 allocs/op
-BenchmarkGethVerify-16                	   65779 	    18459 ns/op	       0 B/op	       0 allocs/op
-BenchmarkGethVerify-16                	   65872 	    18579 ns/op	       0 B/op	       0 allocs/op
-BenchmarkGethVerify-16                	   65626 	    18475 ns/op	       0 B/op	       0 allocs/op
-BenchmarkGethVerify-16                	   65612 	    18544 ns/op	       0 B/op	       0 allocs/op
-BenchmarkGethVerify-16                	   65259 	    18289 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignCompact-16         	   42079 	    28308 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignCompact-16         	   42292 	    28226 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignCompact-16         	   42326 	    28331 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignCompact-16         	   42342 	    28345 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignCompact-16         	   42446 	    28799 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignRecoverable-16     	   41343 	    29253 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignRecoverable-16     	   40996 	    29203 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignRecoverable-16     	   41944 	    28680 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignRecoverable-16     	   41457 	    28768 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalSignRecoverable-16     	   40826 	    28913 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalVerify-16              	   33416 	    36146 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalVerify-16              	   32823 	    36400 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalVerify-16              	   33538 	    35774 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalVerify-16              	   33201 	    35868 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLocalVerify-16              	   33514 	    35735 ns/op	       0 B/op	       0 allocs/op
+BenchmarkDecredSignCompact-16        	   37105 	    32841 ns/op	    1512 B/op	      28 allocs/op
+BenchmarkDecredSignCompact-16        	   36370 	    33431 ns/op	    1512 B/op	      28 allocs/op
+BenchmarkDecredSignCompact-16        	   36700 	    32881 ns/op	    1512 B/op	      28 allocs/op
+BenchmarkDecredSignCompact-16        	   35674 	    32946 ns/op	    1512 B/op	      28 allocs/op
+BenchmarkDecredSignCompact-16        	   36117 	    32900 ns/op	    1512 B/op	      28 allocs/op
+BenchmarkDecredSignRecoverable-16    	   35533 	    33393 ns/op	    1592 B/op	      29 allocs/op
+BenchmarkDecredSignRecoverable-16    	   37029 	    33388 ns/op	    1592 B/op	      29 allocs/op
+BenchmarkDecredSignRecoverable-16    	   36117 	    33694 ns/op	    1592 B/op	      29 allocs/op
+BenchmarkDecredSignRecoverable-16    	   36019 	    32825 ns/op	    1592 B/op	      29 allocs/op
+BenchmarkDecredSignRecoverable-16    	   35709 	    33765 ns/op	    1592 B/op	      29 allocs/op
+BenchmarkDecredVerify-16             	   10000 	   115670 ns/op	     568 B/op	      12 allocs/op
+BenchmarkDecredVerify-16             	   10000 	   112606 ns/op	     568 B/op	      12 allocs/op
+BenchmarkDecredVerify-16             	   10000 	   114400 ns/op	     568 B/op	      12 allocs/op
+BenchmarkDecredVerify-16             	   10000 	   113454 ns/op	     568 B/op	      12 allocs/op
+BenchmarkDecredVerify-16             	   10000 	   112438 ns/op	     568 B/op	      12 allocs/op
+BenchmarkGethSignRecoverable-16      	   74607 	    16021 ns/op	     164 B/op	       3 allocs/op
+BenchmarkGethSignRecoverable-16      	   75393 	    15986 ns/op	     164 B/op	       3 allocs/op
+BenchmarkGethSignRecoverable-16      	   75180 	    15928 ns/op	     164 B/op	       3 allocs/op
+BenchmarkGethSignRecoverable-16      	   74834 	    15982 ns/op	     164 B/op	       3 allocs/op
+BenchmarkGethSignRecoverable-16      	   74624 	    16134 ns/op	     164 B/op	       3 allocs/op
+BenchmarkGethVerify-16               	   65312 	    18541 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGethVerify-16               	   62320 	    18862 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGethVerify-16               	   64773 	    18896 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGethVerify-16               	   64491 	    18673 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGethVerify-16               	   65077 	    18840 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok 	github.com/islishude/secp256k1/benchmark	48.528s
+ok  	github.com/islishude/secp256k1/benchmark	48.704s
 ```

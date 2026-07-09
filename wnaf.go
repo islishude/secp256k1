@@ -16,9 +16,7 @@ func signedWNAFVartime(k *scalar.Element, window int) ([257]int16, int, int16) {
 	sign := int16(1)
 	words := k.Words()
 	if scalar.IsHighWords(words) {
-		var neg scalar.Element
-		neg.Neg(k)
-		words = neg.Words()
+		words = scalar.NegWords(words)
 		sign = -1
 	}
 	naf, length := wnafVartime(&words, window)
@@ -119,6 +117,11 @@ func shr1(words *[4]uint64) {
 
 func bitAt(k *[32]byte, i int) byte {
 	return (k[i/8] >> uint(7-i%8)) & 1
+}
+
+func bitAtWords(k *[4]uint64, i int) byte {
+	bit := 255 - i
+	return byte((k[bit/64] >> uint(bit%64)) & 1)
 }
 
 func nibbleAt(k *[32]byte, i int) byte {

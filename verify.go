@@ -10,7 +10,7 @@ import (
 //
 // Verification only uses public inputs and may use variable-time algorithms.
 func VerifyDigest(pub PublicKey, digest Digest, sig Signature) bool {
-	return pub.verifyDigest(digest, sig, false)
+	return pub.verifyDigest(digest, (*[SignatureSize]byte)(sig[:]), false)
 }
 
 // VerifyCanonicalDigest reports whether sig is a valid low-S ECDSA signature for
@@ -18,14 +18,14 @@ func VerifyDigest(pub PublicKey, digest Digest, sig Signature) bool {
 //
 // Verification only uses public inputs and may use variable-time algorithms.
 func VerifyCanonicalDigest(pub PublicKey, digest Digest, sig Signature) bool {
-	return pub.verifyDigest(digest, sig, true)
+	return pub.verifyDigest(digest, (*[SignatureSize]byte)(sig[:]), true)
 }
 
-func (p PublicKey) verifyDigest(digest Digest, sig Signature, requireLowS bool) bool {
+func (p PublicKey) verifyDigest(digest Digest, sig *[SignatureSize]byte, requireLowS bool) bool {
 	if !p.isValid() {
 		return false
 	}
-	r, s, ok := parseSignature(&sig, requireLowS)
+	r, s, ok := parseSignature(sig, requireLowS)
 	if !ok {
 		return false
 	}
@@ -66,7 +66,7 @@ func jacobianXEqualsFieldElementWords(p *point, xWords *[4]uint64) bool {
 	return expected.Equal(&p.x)
 }
 
-func parseSignature(sig *Signature, requireLowS bool) (scalar.Element, scalar.Element, bool) {
+func parseSignature(sig *[SignatureSize]byte, requireLowS bool) (scalar.Element, scalar.Element, bool) {
 	rBytes := (*[scalar.Size]byte)(sig[:scalar.Size])
 	sBytes := (*[scalar.Size]byte)(sig[scalar.Size:SignatureSize])
 	if scalar.IsZeroBytes(rBytes) || scalar.IsZeroBytes(sBytes) ||

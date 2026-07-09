@@ -38,11 +38,7 @@ func ParsePrivateKey(b []byte) (*PrivateKey, error) {
 	if len(b) != PrivateKeySize {
 		return nil, ErrInvalidPrivateKey
 	}
-	var fixed [PrivateKeySize]byte
-	copy(fixed[:], b)
-	key, err := parsePrivateKeyBytes(&fixed)
-	clear(fixed[:])
-	return key, err
+	return parsePrivateKeyBytes((*[PrivateKeySize]byte)(b))
 }
 
 func parsePrivateKeyBytes(b *[PrivateKeySize]byte) (*PrivateKey, error) {

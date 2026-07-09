@@ -47,12 +47,13 @@ func (k *PrivateKey) signDigest(digest Digest, recoverable bool) (RecoverableSig
 		// ECDSA defines r as x(R) mod n. Recovery needs to know whether the
 		// original field x-coordinate was r or r+n, so keep that overflow bit.
 		xOverflow := byte(0)
-		if recoverable && !scalar.FieldElementLessThanOrder(&rx) {
+		rxWords := rx.NonMontgomeryWords()
+		if recoverable && !scalar.LessThanOrderWords(rxWords) {
 			xOverflow = 1
 		}
 
 		var r, rd, sum, kinv, s scalar.Element
-		r.SetFieldElementModOrder(&rx)
+		r.SetWordsModOrder(rxWords)
 		if r.IsZero() {
 			nonce.Reject()
 			continue

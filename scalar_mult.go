@@ -42,6 +42,11 @@ func scalarBaseMultProjective(k *scalar.Element) projectivePoint {
 	return r
 }
 
+func scalarMultScalar(p *point, k *scalar.Element) point {
+	words := k.Words()
+	return scalarMultWords(p, &words)
+}
+
 func scalarMult(p *point, k *[32]byte) point {
 	var r point
 	r.setInfinity()
@@ -56,6 +61,25 @@ func scalarMult(p *point, k *[32]byte) point {
 	return r
 }
 
+func scalarMultWords(p *point, k *[4]uint64) point {
+	var r point
+	r.setInfinity()
+	for i := range 256 {
+		// Left-to-right double-and-add over the scalar bits.
+		var doubled point
+		doubled.double(&r)
+		var sum point
+		sum.add(&doubled, p)
+		r.selectPoint(&doubled, &sum, uint64(bitAtWords(k, i)))
+	}
+	return r
+}
+
+func scalarMultAffineScalar(p *point, k *scalar.Element) point {
+	words := k.Words()
+	return scalarMultAffineWords(p, &words)
+}
+
 func scalarMultAffine(p *point, k *[32]byte) point {
 	var r point
 	r.setInfinity()
@@ -68,6 +92,22 @@ func scalarMultAffine(p *point, k *[32]byte) point {
 		var sum point
 		sum.addAffine(&doubled, &p.x, &p.y)
 		r.selectPoint(&doubled, &sum, uint64(bitAt(k, i)))
+	}
+	return r
+}
+
+func scalarMultAffineWords(p *point, k *[4]uint64) point {
+	var r point
+	r.setInfinity()
+	if p.isInfinity() {
+		return r
+	}
+	for i := range 256 {
+		var doubled point
+		doubled.double(&r)
+		var sum point
+		sum.addAffine(&doubled, &p.x, &p.y)
+		r.selectPoint(&doubled, &sum, uint64(bitAtWords(k, i)))
 	}
 	return r
 }

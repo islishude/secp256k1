@@ -92,7 +92,13 @@ type Element struct {
 
 // LessThanOrder reports whether b is a canonical scalar encoding.
 func LessThanOrder(b *[Size]byte) bool {
-	return wordsLessThanOrder(bytesToWords(b))
+	return LessThanOrderWords(bytesToWords(b))
+}
+
+// LessThanOrderWords reports whether little-endian non-Montgomery words are a
+// canonical scalar encoding.
+func LessThanOrderWords(words [4]uint64) bool {
+	return wordsLessThanOrder(words)
 }
 
 // IsZeroBytes reports whether b is the all-zero scalar encoding.
@@ -103,7 +109,7 @@ func IsZeroBytes(b *[Size]byte) bool {
 // FieldElementLessThanOrder reports whether x's canonical field value is less
 // than the secp256k1 group order.
 func FieldElementLessThanOrder(x *field.Element) bool {
-	return wordsLessThanOrder(x.NonMontgomeryWords())
+	return LessThanOrderWords(x.NonMontgomeryWords())
 }
 
 // SetBytesModOrder reduces b modulo the group order and returns its canonical
@@ -191,21 +197,16 @@ func (z *Element) SetOne() *Element {
 
 // SetUint64 assigns z = v.
 func (z *Element) SetUint64(v uint64) *Element {
-	var b [Size]byte
-	binary.BigEndian.PutUint64(b[24:], v)
-	ok := z.SetBytes(&b)
-	if !ok {
-		panic("scalar: uint64 out of range")
-	}
-	return z
+	return z.setWordsUnchecked([4]uint64{v, 0, 0, 0})
 }
 
 // SetBytes parses a canonical 32-byte big-endian scalar.
 func (z *Element) SetBytes(b *[Size]byte) bool {
-	if !LessThanOrder(b) {
+	words := bytesToWords(b)
+	if !LessThanOrderWords(words) {
 		return false
 	}
-	z.SetBytesUnchecked(b)
+	z.setWordsUnchecked(words)
 	return true
 }
 
@@ -226,12 +227,17 @@ func (z *Element) setWordsUnchecked(words [4]uint64) *Element {
 
 // SetBytesModOrder assigns z to b reduced modulo the group order.
 func (z *Element) SetBytesModOrder(b *[Size]byte) *Element {
-	return z.setWordsUnchecked(reduceWordsModOrder(bytesToWords(b)))
+	return z.SetWordsModOrder(bytesToWords(b))
 }
 
 // SetFieldElementModOrder assigns z to x reduced modulo the group order.
 func (z *Element) SetFieldElementModOrder(x *field.Element) *Element {
-	return z.setWordsUnchecked(reduceWordsModOrder(x.NonMontgomeryWords()))
+	return z.SetWordsModOrder(x.NonMontgomeryWords())
+}
+
+// SetWordsModOrder assigns z to words reduced modulo the group order.
+func (z *Element) SetWordsModOrder(words [4]uint64) *Element {
+	return z.setWordsUnchecked(reduceWordsModOrder(words))
 }
 
 // SetWords assigns z from canonical non-Montgomery little-endian words.
@@ -272,6 +278,20 @@ func (z *Element) IsHighChoice() uint64 {
 // word array is greater than n/2.
 func IsHighWords(words [4]uint64) bool {
 	return wordsGreaterThanHalfOrder(words) == 1
+}
+
+// NegWords returns -words mod n for canonical little-endian non-Montgomery
+// words.
+func NegWords(words [4]uint64) [4]uint64 {
+	if words == [4]uint64{} {
+		return [4]uint64{}
+	}
+	var borrow uint64
+	d0, borrow := bits.Sub64(orderLimb3, words[0], 0)
+	d1, borrow := bits.Sub64(orderLimb2, words[1], borrow)
+	d2, borrow := bits.Sub64(orderLimb1, words[2], borrow)
+	d3, _ := bits.Sub64(orderLimb0, words[3], borrow)
+	return [4]uint64{d0, d1, d2, d3}
 }
 
 // Equal reports whether z and x are the same scalar.
@@ -418,12 +438,13 @@ func mul512Rsh320Round(n1Digits, n2Digits [4]uint64) Element {
 	r1, c = bits.Add64(r1, 0, c)
 	r2, r3 = bits.Add64(r2, 0, c)
 
-	var b [Size]byte
-	binary.BigEndian.PutUint64(b[0:8], r3)
-	binary.BigEndian.PutUint64(b[8:16], r2)
-	binary.BigEndian.PutUint64(b[16:24], r1)
-	binary.BigEndian.PutUint64(b[24:32], r0)
-	return mustElement(b)
+	words := [4]uint64{r0, r1, r2, r3}
+	if !LessThanOrderWords(words) {
+		panic("scalar: invalid element")
+	}
+	var out Element
+	out.setWordsUnchecked(words)
+	return out
 }
 
 func elementWords(k *Element) [4]uint64 {

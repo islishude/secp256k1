@@ -81,6 +81,33 @@ func TestRejectsNonCanonicalEncoding(t *testing.T) {
 	}
 }
 
+func TestWordEncodingHelpers(t *testing.T) {
+	values := [][Size]byte{
+		fromHex("00"),
+		fromHex("01"),
+		fromHex("02"),
+		fromHex("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
+		fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e"),
+	}
+
+	if LessThanModulusWords(bytesToWords(&Modulus)) {
+		t.Fatal("LessThanModulusWords accepted modulus")
+	}
+
+	for _, vb := range values {
+		words := bytesToWords(&vb)
+		if !LessThanModulusWords(words) {
+			t.Fatalf("LessThanModulusWords(%x) = false", vb)
+		}
+
+		var got Element
+		got.SetNonMontgomeryWords(words)
+		if gotBytes := got.Bytes(); gotBytes != vb {
+			t.Fatalf("SetNonMontgomeryWords(%x).Bytes() = %x", vb, gotBytes)
+		}
+	}
+}
+
 func assertFieldBig(t *testing.T, got *Element, want *big.Int) {
 	t.Helper()
 	b := got.Bytes()

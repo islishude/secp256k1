@@ -1,9 +1,6 @@
 package secp256k1
 
-import (
-	"github.com/islishude/secp256k1/internal/field"
-	"github.com/islishude/secp256k1/internal/scalar"
-)
+import "github.com/islishude/secp256k1/internal/scalar"
 
 // RecoverDigest reconstructs the public key that produced sig over digest.
 func RecoverDigest(digest Digest, sig RecoverableSignature) (PublicKey, error) {
@@ -11,19 +8,16 @@ func RecoverDigest(digest Digest, sig RecoverableSignature) (PublicKey, error) {
 	if !ok {
 		return PublicKey{}, ErrInvalidSignature
 	}
-	xBytes := r.Bytes()
+	xWords := r.Words()
 	if recid>>1 == 1 {
 		var ok bool
-		xBytes, ok = scalar.AddOrder(xBytes)
+		xWords, ok = scalar.AddOrderWords(xWords)
 		if !ok {
 			return PublicKey{}, ErrInvalidSignature
 		}
 	}
-	if !field.LessThanModulus(&xBytes) {
-		return PublicKey{}, ErrInvalidSignature
-	}
 
-	x, y, ok := affineFromXBytes(&xBytes, recid&1 == 1)
+	x, y, ok := affineFromXWords(&xWords, recid&1 == 1)
 	if !ok {
 		return PublicKey{}, ErrInvalidSignature
 	}
@@ -36,20 +30,18 @@ func RecoverDigest(digest Digest, sig RecoverableSignature) (PublicKey, error) {
 	rInv.Inv(&r)
 
 	// Rearranging s = k^-1(e + rd) gives Q = dG = r^-1(sR - eG).
-	sBytes := s.Bytes()
-	sR := scalarMultAffine(&rPoint, &sBytes)
+	sR := scalarMultAffineScalar(&rPoint, &s)
 	eG := scalarBaseMult(&e)
 	var negEG point
 	negEG.neg(&eG)
 	var q point
 	q.add(&sR, &negEG)
-	rInvBytes := rInv.Bytes()
-	q = scalarMult(&q, &rInvBytes)
+	q = scalarMultScalar(&q, &rInv)
 	if q.isInfinity() {
 		return PublicKey{}, ErrInvalidSignature
 	}
 	pub, ok := publicKeyFromPoint(&q)
-	if !ok || !VerifyCanonicalDigest(pub, digest, sig.Signature()) {
+	if !ok || !pub.verifyDigest(digest, (*[SignatureSize]byte)(sig[:SignatureSize]), true) {
 		return PublicKey{}, ErrInvalidSignature
 	}
 	return pub, nil
@@ -60,8 +52,7 @@ func parseRecoverableSignature(sig *RecoverableSignature) (scalar.Element, scala
 	if recid > 3 {
 		return scalar.Element{}, scalar.Element{}, 0, false
 	}
-	baseSig := sig.Signature()
-	r, s, ok := parseSignature(&baseSig, true)
+	r, s, ok := parseSignature((*[SignatureSize]byte)(sig[:SignatureSize]), true)
 	if !ok {
 		return scalar.Element{}, scalar.Element{}, 0, false
 	}

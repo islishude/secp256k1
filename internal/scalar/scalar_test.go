@@ -152,6 +152,37 @@ func TestIsHigh(t *testing.T) {
 	}
 }
 
+func TestWordHelpers(t *testing.T) {
+	values := [][Size]byte{
+		fromHex("00"),
+		fromHex("01"),
+		fromHex("02"),
+		HalfOrder,
+		fromHex("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"),
+	}
+
+	if LessThanOrderWords(bytesToWords(&Order)) {
+		t.Fatal("LessThanOrderWords accepted order")
+	}
+
+	for _, vb := range values {
+		var v Element
+		if !v.SetBytes(&vb) {
+			t.Fatalf("SetBytes(%x) failed", vb)
+		}
+		words := v.Words()
+		if !LessThanOrderWords(words) {
+			t.Fatalf("LessThanOrderWords(%x) = false", vb)
+		}
+
+		var neg Element
+		neg.Neg(&v)
+		if got, want := wordsToBytes(NegWords(words)), neg.Bytes(); got != want {
+			t.Fatalf("NegWords(%x) = %x, want %x", vb, got, want)
+		}
+	}
+}
+
 func TestSelect(t *testing.T) {
 	oneBytes := fromHex("01")
 	twoBytes := fromHex("02")

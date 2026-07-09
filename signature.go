@@ -9,7 +9,7 @@ func ParseSignature(b []byte) (Signature, error) {
 	}
 	var sig Signature
 	copy(sig[:], b)
-	if _, _, ok := parseSignature(&sig, false); !ok {
+	if _, _, ok := parseSignature((*[SignatureSize]byte)(sig[:]), false); !ok {
 		return Signature{}, ErrInvalidSignature
 	}
 	return sig, nil
@@ -31,7 +31,7 @@ func ParseRecoverableSignature(b []byte) (RecoverableSignature, error) {
 
 // BytesDER returns sig encoded as a strict DER ECDSA signature.
 func (sig Signature) BytesDER() ([]byte, error) {
-	if _, _, ok := parseSignature(&sig, false); !ok {
+	if _, _, ok := parseSignature((*[SignatureSize]byte)(sig[:]), false); !ok {
 		return nil, ErrInvalidSignature
 	}
 
@@ -67,7 +67,7 @@ func ParseDERSignature(der []byte) (Signature, error) {
 	var sig Signature
 	copy(sig[32-len(r):32], r)
 	copy(sig[SignatureSize-len(s):], s)
-	if _, _, ok := parseSignature(&sig, false); !ok {
+	if _, _, ok := parseSignature((*[SignatureSize]byte)(sig[:]), false); !ok {
 		return Signature{}, ErrInvalidSignature
 	}
 	return sig, nil

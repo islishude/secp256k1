@@ -22,6 +22,7 @@ var (
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
 	endoBeta               = newEndomorphismBeta()
+	secp256k1BElement      = fieldElementUint64(secp256k1B)
 	secp256k1B3            = fieldElementUint64(3 * secp256k1B)
 	generator              = newGeneratorPoint()
 	generatorAffineTable   = newGeneratorAffineTable()
@@ -60,12 +61,11 @@ func fieldElementUint64(v uint64) field.Element {
 }
 
 func isOnCurve(x, y *field.Element) bool {
-	var yy, xx, rhs, seven field.Element
+	var yy, xx, rhs field.Element
 	yy.Square(y)
 	xx.Square(x)
 	rhs.Mul(&xx, x)
-	seven.SetUint64(secp256k1B)
-	rhs.Add(&rhs, &seven)
+	rhs.Add(&rhs, &secp256k1BElement)
 	return yy.Equal(&rhs)
 }
 
@@ -81,12 +81,24 @@ func affineFromXBytes(xBytes *[32]byte, wantOdd bool) (field.Element, field.Elem
 	return x, y, true
 }
 
+func affineFromXWords(xWords *[4]uint64, wantOdd bool) (field.Element, field.Element, bool) {
+	if !field.LessThanModulusWords(*xWords) {
+		return field.Element{}, field.Element{}, false
+	}
+	var x field.Element
+	x.SetNonMontgomeryWords(*xWords)
+	y, ok := curveYFromX(&x, wantOdd)
+	if !ok {
+		return field.Element{}, field.Element{}, false
+	}
+	return x, y, true
+}
+
 func curveYFromX(x *field.Element, wantOdd bool) (field.Element, bool) {
-	var y, rhs, x2, seven field.Element
+	var y, rhs, x2 field.Element
 	x2.Square(x)
 	rhs.Mul(&x2, x)
-	seven.SetUint64(secp256k1B)
-	rhs.Add(&rhs, &seven)
+	rhs.Add(&rhs, &secp256k1BElement)
 	if !y.Sqrt(&rhs) {
 		return field.Element{}, false
 	}

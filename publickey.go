@@ -1,10 +1,6 @@
 package secp256k1
 
-import (
-	"crypto/subtle"
-
-	"github.com/islishude/secp256k1/internal/field"
-)
+import "github.com/islishude/secp256k1/internal/field"
 
 // PublicKey is a secp256k1 verification key represented by an affine curve
 // point.
@@ -28,9 +24,7 @@ func ParsePublicKey(b []byte) (PublicKey, error) {
 		if b[0] != 0x02 && b[0] != 0x03 {
 			return PublicKey{}, ErrInvalidPublicKey
 		}
-		var xb [field.Size]byte
-		copy(xb[:], b[1:])
-		x, y, ok := affineFromXBytes(&xb, b[0] == 0x03)
+		x, y, ok := affineFromXBytes((*[field.Size]byte)(b[1:]), b[0] == 0x03)
 		if !ok {
 			return PublicKey{}, ErrInvalidPublicKey
 		}
@@ -39,11 +33,10 @@ func ParsePublicKey(b []byte) (PublicKey, error) {
 		if b[0] != 0x04 {
 			return PublicKey{}, ErrInvalidPublicKey
 		}
-		var xb, yb [field.Size]byte
-		copy(xb[:], b[1:33])
-		copy(yb[:], b[33:])
 		var x, y field.Element
-		if !x.SetBytes(&xb) || !y.SetBytes(&yb) || !isOnCurve(&x, &y) {
+		if !x.SetBytes((*[field.Size]byte)(b[1:33])) ||
+			!y.SetBytes((*[field.Size]byte)(b[33:])) ||
+			!isOnCurve(&x, &y) {
 			return PublicKey{}, ErrInvalidPublicKey
 		}
 		return newPublicKey(&x, &y), nil
@@ -62,8 +55,7 @@ func (p PublicKey) BytesCompressed() ([PublicKeyCompressedSize]byte, error) {
 	if p.y.IsOdd() {
 		out[0] = 0x03
 	}
-	x := p.x.Bytes()
-	copy(out[1:], x[:])
+	p.x.PutBytes((*[field.Size]byte)(out[1:]))
 	return out, nil
 }
 
@@ -74,10 +66,8 @@ func (p PublicKey) BytesUncompressed() ([PublicKeyUncompressedSize]byte, error) 
 		return out, ErrInvalidPublicKey
 	}
 	out[0] = 0x04
-	x := p.x.Bytes()
-	y := p.y.Bytes()
-	copy(out[1:33], x[:])
-	copy(out[33:], y[:])
+	p.x.PutBytes((*[field.Size]byte)(out[1:33]))
+	p.y.PutBytes((*[field.Size]byte)(out[33:]))
 	return out, nil
 }
 
@@ -86,15 +76,7 @@ func (p PublicKey) Equal(q PublicKey) bool {
 	if !p.isValid() || !q.isValid() {
 		return false
 	}
-	pb, err := p.BytesUncompressed()
-	if err != nil {
-		return false
-	}
-	qb, err := q.BytesUncompressed()
-	if err != nil {
-		return false
-	}
-	return subtle.ConstantTimeCompare(pb[:], qb[:]) == 1
+	return p.x.Equal(&q.x) && p.y.Equal(&q.y)
 }
 
 func (p PublicKey) isValid() bool {

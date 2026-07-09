@@ -34,23 +34,41 @@ type Element struct {
 
 // LessThanModulus reports whether b is a canonical field encoding.
 func LessThanModulus(b *[Size]byte) bool {
-	x0 := binary.BigEndian.Uint64(b[0:8])
-	if x0 != ModuleLimb0 {
-		return x0 < ModuleLimb0
+	return LessThanModulusWords(bytesToWords(b))
+}
+
+// LessThanModulusWords reports whether little-endian non-Montgomery words are
+// a canonical field encoding.
+func LessThanModulusWords(words [4]uint64) bool {
+	if words[3] != ModuleLimb0 {
+		return words[3] < ModuleLimb0
 	}
 
-	x1 := binary.BigEndian.Uint64(b[8:16])
-	if x1 != ModuleLimb1 {
-		return x1 < ModuleLimb1
+	if words[2] != ModuleLimb1 {
+		return words[2] < ModuleLimb1
 	}
 
-	x2 := binary.BigEndian.Uint64(b[16:24])
-	if x2 != ModuleLimb2 {
-		return x2 < ModuleLimb2
+	if words[1] != ModuleLimb2 {
+		return words[1] < ModuleLimb2
 	}
 
-	x3 := binary.BigEndian.Uint64(b[24:32])
-	return x3 < ModuleLimb3
+	return words[0] < ModuleLimb3
+}
+
+func bytesToWords(b *[Size]byte) [4]uint64 {
+	return [4]uint64{
+		binary.BigEndian.Uint64(b[24:32]),
+		binary.BigEndian.Uint64(b[16:24]),
+		binary.BigEndian.Uint64(b[8:16]),
+		binary.BigEndian.Uint64(b[0:8]),
+	}
+}
+
+func putWordsBytes(out *[Size]byte, words [4]uint64) {
+	binary.BigEndian.PutUint64(out[0:8], words[3])
+	binary.BigEndian.PutUint64(out[8:16], words[2])
+	binary.BigEndian.PutUint64(out[16:24], words[1])
+	binary.BigEndian.PutUint64(out[24:32], words[0])
 }
 
 // Set assigns z = x.
@@ -73,28 +91,16 @@ func (z *Element) SetOne() *Element {
 
 // SetUint64 assigns z = v.
 func (z *Element) SetUint64(v uint64) *Element {
-	var b [Size]byte
-	binary.BigEndian.PutUint64(b[24:], v)
-	ok := z.SetBytes(&b)
-	if !ok {
-		panic("field: uint64 out of range")
-	}
-	return z
+	return z.SetNonMontgomeryWords([4]uint64{v, 0, 0, 0})
 }
 
 // SetBytes parses a canonical 32-byte big-endian field element.
 func (z *Element) SetBytes(b *[Size]byte) bool {
-	if !LessThanModulus(b) {
+	words := bytesToWords(b)
+	if !LessThanModulusWords(words) {
 		return false
 	}
-	var in fiat.NonMontgomeryDomainFieldElement
-	// fiat-crypto generated code stores limbs little-endian, while the public
-	// API uses conventional big-endian encodings.
-	in[0] = binary.BigEndian.Uint64(b[24:32])
-	in[1] = binary.BigEndian.Uint64(b[16:24])
-	in[2] = binary.BigEndian.Uint64(b[8:16])
-	in[3] = binary.BigEndian.Uint64(b[0:8])
-	fiat.ToMontgomery(&z.x, &in)
+	z.SetNonMontgomeryWords(words)
 	return true
 }
 
@@ -107,13 +113,14 @@ func (z *Element) NonMontgomeryWords() [4]uint64 {
 
 // Bytes returns the canonical 32-byte big-endian encoding of z.
 func (z *Element) Bytes() [Size]byte {
-	out := z.NonMontgomeryWords()
 	var be [Size]byte
-	binary.BigEndian.PutUint64(be[0:8], out[3])
-	binary.BigEndian.PutUint64(be[8:16], out[2])
-	binary.BigEndian.PutUint64(be[16:24], out[1])
-	binary.BigEndian.PutUint64(be[24:32], out[0])
+	z.PutBytes(&be)
 	return be
+}
+
+// PutBytes writes the canonical 32-byte big-endian encoding of z to out.
+func (z *Element) PutBytes(out *[Size]byte) {
+	putWordsBytes(out, z.NonMontgomeryWords())
 }
 
 // IsZero reports whether z is 0.
