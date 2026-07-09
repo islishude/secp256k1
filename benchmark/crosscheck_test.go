@@ -1,6 +1,7 @@
-package benchemark
+package benchmark
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/sha256"
@@ -60,7 +61,9 @@ func TestCrossCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			valid = secp256k1.VerifyDigest(pub, digest, secp256k1.Signature(sig2))
+			var gethSignature secp256k1.Signature
+			copy(gethSignature[:], sig2[:secp256k1.SignatureSize])
+			valid = secp256k1.VerifyDigest(pub, digest, gethSignature)
 			if !valid {
 				t.Fatal("invalid signature from local implementation")
 			}
@@ -77,8 +80,11 @@ func TestCrossCheck(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if recoveredBytes != secp256k1.RecoverableSignature(rec) {
-				t.Fatal("recovered public key does not match")
+			if !bytes.Equal(recoveredBytes[:], pubBytes) {
+				t.Fatal("local recovered public key does not match")
+			}
+			if !bytes.Equal(rec, pubBytes) {
+				t.Fatal("geth recovered public key does not match")
 			}
 		})
 	}
