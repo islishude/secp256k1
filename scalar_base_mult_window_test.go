@@ -83,6 +83,20 @@ func TestFixedWindowDigit(t *testing.T) {
 	}
 }
 
+func TestSelectGeneratorW5(t *testing.T) {
+	for window := range generatorAffineTableW5Words {
+		table := &generatorAffineTableW5Words[window]
+		for magnitude := uint64(0); magnitude <= baseTableSize; magnitude++ {
+			var got [8]uint64
+			selectGeneratorW5(&got, table, magnitude)
+			wantIndex := max(magnitude, 1) - 1
+			if want := table[wantIndex]; got != want {
+				t.Fatalf("window %d magnitude %d selected %x, want %x", window, magnitude, got, want)
+			}
+		}
+	}
+}
+
 func newGeneratorAffineTableW6ForTest() [baseWindowsW6][baseTableSizeW6]affinePoint {
 	var table [baseWindowsW6][baseTableSizeW6]affinePoint
 	base := generator

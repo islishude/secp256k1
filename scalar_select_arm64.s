@@ -1,0 +1,39 @@
+// Copyright (c) 2026 islishude.
+
+//go:build arm64 && secp256k1_asm
+
+#include "textflag.h"
+
+#define SELECT_W5_ENTRY(digit) \
+	CMP $digit, R2; \
+	CSETM EQ, R3; \
+	VDUP R3, V4.D2; \
+	VLD1.P 64(R1), [V5.B16, V6.B16, V7.B16, V8.B16]; \
+	VBIT V4.B16, V5.B16, V0.B16; \
+	VBIT V4.B16, V6.B16, V1.B16; \
+	VBIT V4.B16, V7.B16, V2.B16; \
+	VBIT V4.B16, V8.B16, V3.B16
+
+// func selectGeneratorW5(out *[8]uint64, table *[16][8]uint64, magnitude uint64)
+TEXT ·selectGeneratorW5(SB), NOSPLIT, $0-24
+	MOVD out+0(FP), R0
+	MOVD table+8(FP), R1
+	MOVD magnitude+16(FP), R2
+	VLD1.P 64(R1), [V0.B16, V1.B16, V2.B16, V3.B16]
+	SELECT_W5_ENTRY(2)
+	SELECT_W5_ENTRY(3)
+	SELECT_W5_ENTRY(4)
+	SELECT_W5_ENTRY(5)
+	SELECT_W5_ENTRY(6)
+	SELECT_W5_ENTRY(7)
+	SELECT_W5_ENTRY(8)
+	SELECT_W5_ENTRY(9)
+	SELECT_W5_ENTRY(10)
+	SELECT_W5_ENTRY(11)
+	SELECT_W5_ENTRY(12)
+	SELECT_W5_ENTRY(13)
+	SELECT_W5_ENTRY(14)
+	SELECT_W5_ENTRY(15)
+	SELECT_W5_ENTRY(16)
+	VST1 [V0.B16, V1.B16, V2.B16, V3.B16], (R0)
+	RET

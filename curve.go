@@ -23,7 +23,6 @@ var (
 	}
 	endoBeta          = newEndomorphismBeta()
 	secp256k1BElement = fieldElementUint64(secp256k1B)
-	secp256k1B3       = fieldElementUint64(3 * secp256k1B)
 	generator         = newGeneratorPoint()
 )
 

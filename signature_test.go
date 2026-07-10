@@ -44,6 +44,14 @@ func TestSignVerifyRecoverDigest(t *testing.T) {
 	if recSig1 != recSig2 {
 		t.Fatal("recoverable RFC6979 signature is not deterministic")
 	}
+	wantR := must32("6a223f22d601fdadc0f3a3c166c947d19bf54375d7897d8eabb989ea6a2c4731")
+	wantS := must32("498457b17443ac530fcedfd6e5d719460e628993c783f810300919052cf2acdf")
+	var wantRecoverable RecoverableSignature
+	copy(wantRecoverable[:32], wantR[:])
+	copy(wantRecoverable[32:64], wantS[:])
+	if recSig1 != wantRecoverable {
+		t.Fatalf("recoverable signature changed\n got %x\nwant %x", recSig1, wantRecoverable)
+	}
 	if recSig1.Signature() != sig1 {
 		t.Fatal("recoverable and non-recoverable signatures disagree")
 	}

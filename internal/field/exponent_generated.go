@@ -46,86 +46,44 @@ func fieldInv(x Element) Element {
 	t1.Mul(&t0, &z)
 
 	t0.Square(&t1)
-
-	t2.Square(&t0)
-	for s := 1; s < 2; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t0, 2)
 
 	t2.Mul(&t1, &t2)
-
-	for s := 0; s < 4; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t2, 4)
 
 	t0.Mul(&t0, &t2)
-
-	t2.Square(&t0)
-	for s := 1; s < 2; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t0, 2)
 
 	t2.Mul(&t1, &t2)
-
-	for s := 0; s < 10; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t2, 10)
 
 	t0.Mul(&t0, &t2)
 
 	t0.Mul(&x, &t0)
 
 	t3.Square(&t0)
-
-	t2.Square(&t3)
-	for s := 1; s < 2; s++ {
-		t2.Square(&t2)
-	}
-
-	t4.Square(&t2)
-	for s := 1; s < 22; s++ {
-		t4.Square(&t4)
-	}
+	t2.SquareN(&t3, 2)
+	t4.SquareN(&t2, 22)
 
 	t2.Mul(&t2, &t4)
-
-	t4.Square(&t2)
-	for s := 1; s < 20; s++ {
-		t4.Square(&t4)
-	}
+	t4.SquareN(&t2, 20)
 
 	t3.Mul(&t3, &t4)
-
-	for s := 0; s < 46; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t3, 46)
 
 	t2.Mul(&t2, &t3)
-
-	t3.Square(&t2)
-	for s := 1; s < 110; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t2, 110)
 
 	t2.Mul(&t2, &t3)
 
 	t1.Mul(&t1, &t2)
-
-	for s := 0; s < 23; s++ {
-		t1.Square(&t1)
-	}
+	t1.SquareN(&t1, 23)
 
 	t0.Mul(&t0, &t1)
-
-	for s := 0; s < 7; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&t0, 7)
 
 	t0.Mul(&z, &t0)
-
-	for s := 0; s < 3; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&t0, 3)
 
 	z.Mul(&z, &t0)
 
@@ -168,88 +126,44 @@ func fieldSqrt(x Element) Element {
 	z.Square(&x)
 
 	z.Mul(&x, &z)
-
-	t0.Square(&z)
-	for s := 1; s < 2; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&z, 2)
 
 	t0.Mul(&z, &t0)
 
 	t1.Square(&t0)
 
 	t2.Mul(&x, &t1)
-
-	t1.Square(&t2)
-	for s := 1; s < 2; s++ {
-		t1.Square(&t1)
-	}
+	t1.SquareN(&t2, 2)
 
 	t1.Mul(&z, &t1)
-
-	t3.Square(&t1)
-	for s := 1; s < 4; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t1, 4)
 
 	t0.Mul(&t0, &t3)
-
-	t3.Square(&t0)
-	for s := 1; s < 11; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t0, 11)
 
 	t0.Mul(&t0, &t3)
-
-	t3.Square(&t0)
-	for s := 1; s < 5; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t0, 5)
 
 	t2.Mul(&t2, &t3)
-
-	t3.Square(&t2)
-	for s := 1; s < 27; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t2, 27)
 
 	t2.Mul(&t2, &t3)
-
-	t3.Square(&t2)
-	for s := 1; s < 54; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t2, 54)
 
 	t2.Mul(&t2, &t3)
-
-	t3.Square(&t2)
-	for s := 1; s < 108; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t2, 108)
 
 	t2.Mul(&t2, &t3)
-
-	for s := 0; s < 7; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t2, 7)
 
 	t1.Mul(&t1, &t2)
-
-	for s := 0; s < 23; s++ {
-		t1.Square(&t1)
-	}
+	t1.SquareN(&t1, 23)
 
 	t0.Mul(&t0, &t1)
-
-	for s := 0; s < 6; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&t0, 6)
 
 	z.Mul(&z, &t0)
-
-	for s := 0; s < 2; s++ {
-		z.Square(&z)
-	}
+	z.SquareN(&z, 2)
 
 	return z
 }

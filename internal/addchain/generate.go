@@ -187,16 +187,7 @@ func HELPER(x Element) Element {
 	{{ end -}}
 
 	{{- with shift $i.Op -}}
-	{{- if ne $i.Output.Identifier .X.Identifier }}
-	{{ $i.Output }}.Square(&{{ .X }})
-	for s := 1; s < {{ .S }}; s++ {
-		{{ $i.Output }}.Square(&{{ $i.Output }})
-	}
-	{{- else }}
-	for s := 0; s < {{ .S }}; s++ {
-		{{ $i.Output }}.Square(&{{ $i.Output }})
-	}
-	{{- end }}
+	{{ $i.Output }}.SquareN(&{{ .X }}, {{ .S }})
 	{{ end -}}
 	{{- end }}
 	return z

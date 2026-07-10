@@ -21,6 +21,22 @@ func BenchmarkScalarSquare(b *testing.B) {
 	}
 }
 
+func BenchmarkScalarSquareN(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.SquareN(&x, 64)
+	}
+}
+
+func BenchmarkScalarInv(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.Inv(&x)
+	}
+}
+
 func benchmarkElement(seed uint64) Element {
 	var x Element
 	x.SetWordsModOrder([4]uint64{

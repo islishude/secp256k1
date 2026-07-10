@@ -177,6 +177,13 @@ func (z *Element) Mul(x, y *Element) *Element {
 	return z
 }
 
+// MulByB3 assigns z = 21*x mod p. The constant is 3*b for secp256k1's b = 7
+// and is used by the complete mixed-add formula.
+func (z *Element) MulByB3(x *Element) *Element {
+	mulByB3Montgomery(&z.x, &x.x)
+	return z
+}
+
 // Square assigns z = x^2 mod p.
 func (z *Element) Square(x *Element) *Element {
 	squareMontgomery(&z.x, &x.x)
@@ -185,10 +192,10 @@ func (z *Element) Square(x *Element) *Element {
 
 // SquareN assigns z = x^(2^n) mod p.
 func (z *Element) SquareN(x *Element, n int) *Element {
-	z.Set(x)
-	for range n {
-		z.Square(z)
+	if n < 1 {
+		return z.Set(x)
 	}
+	squareMontgomeryN(&z.x, &x.x, uint64(n))
 	return z
 }
 

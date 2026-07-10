@@ -18,11 +18,35 @@ func BenchmarkFieldMul(b *testing.B) {
 	}
 }
 
+func BenchmarkFieldMulByB3(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.MulByB3(&x)
+	}
+}
+
 func BenchmarkFieldSquare(b *testing.B) {
 	x := benchmarkElement(0x1234567890abcdef)
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkElementSink.Square(&x)
+	}
+}
+
+func BenchmarkFieldSquareN(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.SquareN(&x, 64)
+	}
+}
+
+func BenchmarkFieldInv(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.Inv(&x)
 	}
 }
 

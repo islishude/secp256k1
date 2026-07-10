@@ -71,11 +71,7 @@ func scalarInv(x Element) Element {
 	t3.Mul(&z, &t0)
 
 	t1.Mul(&z, &t3)
-
-	z.Square(&t1)
-	for s := 1; s < 2; s++ {
-		z.Square(&z)
-	}
+	z.SquareN(&t1, 2)
 
 	z.Mul(&t3, &z)
 
@@ -86,203 +82,102 @@ func scalarInv(x Element) Element {
 	t4.Square(&t7)
 
 	t4.Mul(&x, &t4)
-
-	t9.Square(&t4)
-	for s := 1; s < 3; s++ {
-		t9.Square(&t9)
-	}
-
-	t10.Square(&t9)
-	for s := 1; s < 2; s++ {
-		t10.Square(&t10)
-	}
+	t9.SquareN(&t4, 3)
+	t10.SquareN(&t9, 2)
 
 	t11.Square(&t10)
 
 	t8.Square(&t11)
-
-	t12.Square(&t8)
-	for s := 1; s < 7; s++ {
-		t12.Square(&t12)
-	}
+	t12.SquareN(&t8, 7)
 
 	t11.Mul(&t11, &t12)
-
-	for s := 0; s < 9; s++ {
-		t11.Square(&t11)
-	}
+	t11.SquareN(&t11, 9)
 
 	t8.Mul(&t8, &t11)
-
-	t11.Square(&t8)
-	for s := 1; s < 6; s++ {
-		t11.Square(&t11)
-	}
+	t11.SquareN(&t8, 6)
 
 	t10.Mul(&t10, &t11)
-
-	for s := 0; s < 26; s++ {
-		t10.Square(&t10)
-	}
+	t10.SquareN(&t10, 26)
 
 	t8.Mul(&t8, &t10)
-
-	t10.Square(&t8)
-	for s := 1; s < 4; s++ {
-		t10.Square(&t10)
-	}
+	t10.SquareN(&t8, 4)
 
 	t9.Mul(&t9, &t10)
-
-	for s := 0; s < 60; s++ {
-		t9.Square(&t9)
-	}
+	t9.SquareN(&t9, 60)
 
 	t8.Mul(&t8, &t9)
 
 	t7.Mul(&t7, &t8)
-
-	for s := 0; s < 5; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 5)
 
 	t7.Mul(&t3, &t7)
-
-	for s := 0; s < 3; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 3)
 
 	t7.Mul(&t6, &t7)
-
-	for s := 0; s < 4; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 4)
 
 	t7.Mul(&t6, &t7)
-
-	for s := 0; s < 4; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 4)
 
 	t7.Mul(&t5, &t7)
-
-	for s := 0; s < 5; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 5)
 
 	t7.Mul(&t1, &t7)
-
-	for s := 0; s < 2; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 2)
 
 	t7.Mul(&t2, &t7)
-
-	for s := 0; s < 5; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 5)
 
 	t7.Mul(&t5, &t7)
-
-	for s := 0; s < 6; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 6)
 
 	t7.Mul(&t1, &t7)
-
-	for s := 0; s < 5; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 5)
 
 	t7.Mul(&t3, &t7)
-
-	for s := 0; s < 4; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 4)
 
 	t7.Mul(&t1, &t7)
-
-	for s := 0; s < 3; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 3)
 
 	t7.Mul(&x, &t7)
-
-	for s := 0; s < 6; s++ {
-		t7.Square(&t7)
-	}
+	t7.SquareN(&t7, 6)
 
 	t6.Mul(&t6, &t7)
-
-	for s := 0; s < 10; s++ {
-		t6.Square(&t6)
-	}
+	t6.SquareN(&t6, 10)
 
 	t6.Mul(&t5, &t6)
-
-	for s := 0; s < 4; s++ {
-		t6.Square(&t6)
-	}
+	t6.SquareN(&t6, 4)
 
 	t5.Mul(&t5, &t6)
-
-	for s := 0; s < 9; s++ {
-		t5.Square(&t5)
-	}
+	t5.SquareN(&t5, 9)
 
 	t4.Mul(&t4, &t5)
-
-	for s := 0; s < 5; s++ {
-		t4.Square(&t4)
-	}
+	t4.SquareN(&t4, 5)
 
 	t4.Mul(&t0, &t4)
-
-	for s := 0; s < 6; s++ {
-		t4.Square(&t4)
-	}
+	t4.SquareN(&t4, 6)
 
 	t3.Mul(&t3, &t4)
-
-	for s := 0; s < 4; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t3, 4)
 
 	t3.Mul(&t1, &t3)
-
-	for s := 0; s < 5; s++ {
-		t3.Square(&t3)
-	}
+	t3.SquareN(&t3, 5)
 
 	t2.Mul(&t2, &t3)
-
-	for s := 0; s < 6; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t2, 6)
 
 	t2.Mul(&t1, &t2)
-
-	for s := 0; s < 10; s++ {
-		t2.Square(&t2)
-	}
+	t2.SquareN(&t2, 10)
 
 	t1.Mul(&t1, &t2)
-
-	for s := 0; s < 4; s++ {
-		t1.Square(&t1)
-	}
+	t1.SquareN(&t1, 4)
 
 	t0.Mul(&t0, &t1)
-
-	for s := 0; s < 6; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&t0, 6)
 
 	t0.Mul(&x, &t0)
-
-	for s := 0; s < 8; s++ {
-		t0.Square(&t0)
-	}
+	t0.SquareN(&t0, 8)
 
 	z.Mul(&z, &t0)
 

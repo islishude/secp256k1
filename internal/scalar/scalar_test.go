@@ -45,6 +45,68 @@ func TestElementArithmeticAgainstBig(t *testing.T) {
 	}
 }
 
+func TestSquareMatchesMulDifferential(t *testing.T) {
+	check := func(i int, words [4]uint64) {
+		t.Helper()
+		var x, want, got Element
+		x.SetWordsModOrder(words)
+		want.Mul(&x, &x)
+		got.Square(&x)
+		if !got.Equal(&want) {
+			t.Fatalf("Square mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+		got.Set(&x)
+		got.Square(&got)
+		if !got.Equal(&want) {
+			t.Fatalf("aliased Square mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+
+		var squareNWant Element
+		squareNWant.Mul(&want, &want)
+		got.SquareN(&x, 2)
+		if !got.Equal(&squareNWant) {
+			t.Fatalf("SquareN mismatch at input %d: got %x want %x", i, got.Bytes(), squareNWant.Bytes())
+		}
+		got.Set(&x)
+		got.SquareN(&got, 2)
+		if !got.Equal(&squareNWant) {
+			t.Fatalf("aliased SquareN mismatch at input %d: got %x want %x", i, got.Bytes(), squareNWant.Bytes())
+		}
+	}
+
+	edges := [][4]uint64{
+		{},
+		{1, 0, 0, 0},
+		{orderLimb3 - 1, orderLimb2, orderLimb1, orderLimb0},
+	}
+	for i, words := range edges {
+		check(i, words)
+		var x Element
+		x.SetWordsModOrder(words)
+		for _, n := range []int{-1, 0, 1, 64} {
+			var want, got Element
+			want.Set(&x)
+			for range max(n, 0) {
+				want.Mul(&want, &want)
+			}
+			got.SquareN(&x, n)
+			if !got.Equal(&want) {
+				t.Fatalf("SquareN(%d) mismatch for edge %d: got %x want %x", n, i, got.Bytes(), want.Bytes())
+			}
+		}
+	}
+
+	state := uint64(0x243f6a8885a308d3)
+	for i := range 100_000 {
+		var words [4]uint64
+		for j := range words {
+			state = state*6364136223846793005 + 1442695040888963407
+			words[j] = state
+		}
+		check(i+len(edges), words)
+	}
+}
+
 func TestElementInv(t *testing.T) {
 	values := [][Size]byte{
 		fromHex("0000000000000000000000000000000000000000000000000000000000000001"),

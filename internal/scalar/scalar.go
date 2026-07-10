@@ -373,10 +373,10 @@ func (z *Element) Square(x *Element) *Element {
 
 // SquareN assigns z = x^(2^n) mod n.
 func (z *Element) SquareN(x *Element, n int) *Element {
-	z.Set(x)
-	for range n {
-		z.Square(z)
+	if n < 1 {
+		return z.Set(x)
 	}
+	squareMontgomeryN(&z.x, &x.x, uint64(n))
 	return z
 }
 

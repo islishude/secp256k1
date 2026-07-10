@@ -165,8 +165,8 @@ make fuzz-smoke
 make ct-smoke
 ```
 
-On ARM64, an experimental Montgomery arithmetic backend can be enabled
-explicitly for testing and benchmarking:
+On ARM64, an experimental Montgomery arithmetic and constant-time fixed-base
+backend can be enabled explicitly for testing and benchmarking:
 
 ```sh
 make test-arm64-asm
@@ -176,6 +176,9 @@ make perf-check-arm64
 The backend is selected with the `secp256k1_asm` build tag. It is not enabled
 by default and must receive independent arithmetic, ABI, and constant-time
 review before any default-enable change.
+
+The latest retained ARM64 measurements and security gates are recorded in
+[`docs/perf/20260711-arm64-sign-sprint.md`](docs/perf/20260711-arm64-sign-sprint.md).
 
 Regenerate low-level generated code:
 

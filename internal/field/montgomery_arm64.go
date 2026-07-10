@@ -20,4 +20,13 @@ func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 }
 
 //go:noescape
+func mulByB3Montgomery(out, x *fiat.MontgomeryDomainFieldElement)
+
+//go:noescape
 func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement)
+
+// squareMontgomeryN performs a public, fixed number of squarings entirely in
+// registers. The loop count comes from a static addition chain.
+//
+//go:noescape
+func squareMontgomeryN(out, x *fiat.MontgomeryDomainFieldElement, n uint64)
