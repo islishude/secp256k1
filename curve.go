@@ -21,13 +21,10 @@ var (
 		0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19,
 		0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
 	}
-	endoBeta               = newEndomorphismBeta()
-	secp256k1BElement      = fieldElementUint64(secp256k1B)
-	secp256k1B3            = fieldElementUint64(3 * secp256k1B)
-	generator              = newGeneratorPoint()
-	generatorAffineTable   = newGeneratorAffineTable()
-	generatorWNAFTable     = newGeneratorWNAFTable()
-	generatorEndoWNAFTable = newGeneratorEndomorphismWNAFTable(&generatorWNAFTable)
+	endoBeta          = newEndomorphismBeta()
+	secp256k1BElement = fieldElementUint64(secp256k1B)
+	secp256k1B3       = fieldElementUint64(3 * secp256k1B)
+	generator         = newGeneratorPoint()
 )
 
 func newGeneratorPoint() point {
@@ -104,9 +101,6 @@ func curveYFromX(x *field.Element, wantOdd bool) (field.Element, bool) {
 	}
 	if y.IsOdd() != wantOdd {
 		y.Neg(&y)
-	}
-	if !isOnCurve(x, &y) {
-		return field.Element{}, false
 	}
 	return y, true
 }

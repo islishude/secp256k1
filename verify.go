@@ -31,7 +31,7 @@ func (p PublicKey) verifyDigest(digest Digest, sig *[SignatureSize]byte, require
 	}
 
 	var w, u1, u2, e scalar.Element
-	w.Inv(&s)
+	w.InvVartime(&s)
 	e.SetBytesModOrder(&digest)
 	u1.Mul(&e, &w)
 	u2.Mul(&r, &w)

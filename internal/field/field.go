@@ -209,3 +209,10 @@ func (z *Element) SetNonMontgomeryWords(words [4]uint64) *Element {
 	fiat.ToMontgomery(&z.x, &in)
 	return z
 }
+
+// SetMontgomeryWords assigns z from trusted Montgomery-domain limbs.
+// It is intended for repository-generated precomputation tables only.
+func (z *Element) SetMontgomeryWords(words [4]uint64) *Element {
+	z.x = fiat.MontgomeryDomainFieldElement(words)
+	return z
+}

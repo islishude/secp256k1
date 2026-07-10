@@ -1,0 +1,23 @@
+File: secp256k1.test
+Type: cpu
+Benchmark: BenchmarkVerifyHotPublicKey
+Duration: 3.84s, Total samples = 3.26s
+
+      flat  flat%   cum%  function
+     0.97s 29.75% 31.60% internal/fiat/basefield.Square
+     0.65s 19.94% 23.01% internal/fiat/basefield.Mul
+     0.37s 11.35% 11.66% internal/fiat/scalarfield.Square
+     0.31s  9.51%  9.82% internal/fiat/basefield.Add
+     0.17s  5.21%  5.21% internal/fiat/basefield.cmovznzU64
+     0.10s  3.07%  3.07% internal/fiat/basefield.Sub
+     0.08s  2.45% 15.64% addVariableWNAFPointVartime
+     0.07s  2.15%  2.15% shr1
+     0.07s  2.15%  5.52% wnafVartime
+     0.06s  1.84% 10.43% addGeneratorWNAFPointVartime
+     0.02s  0.61% 21.78% (*point).addAffine
+     0.02s  0.61% 47.24% (*point).double
+     0.01s  0.31% 80.37% doubleScalarBaseMultPrecomputedVartime
+     0.01s  0.31% 13.80% internal/scalar.scalarInv
+
+Full-profile headline: double-scalar multiplication is 80.37% cumulative and
+constant-time scalar inversion is 13.80% cumulative.

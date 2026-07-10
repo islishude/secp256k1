@@ -26,6 +26,9 @@ jobs:
       - run: gofmt -d .
       - run: go vet ./...
       - run: go fix -diff ./...
+      - run: go mod tidy -diff
+      - run: make check-main-deps vartime-audit
+      - run: make generate-check
       - run: go test -v -race -count=1 -cover ./...
 
   check-benchmark:

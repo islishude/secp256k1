@@ -409,6 +409,13 @@ func mustElement(b [Size]byte) Element {
 }
 
 func mul512Rsh320Round(n1Digits, n2Digits [4]uint64) Element {
+	words := mul512Rsh320RoundWords(n1Digits, n2Digits)
+	var out Element
+	out.setWordsUnchecked(words)
+	return out
+}
+
+func mul512Rsh320RoundWords(n1Digits, n2Digits [4]uint64) [4]uint64 {
 	var r1, r2, r3, r4, r5, r6, r7, c uint64
 
 	c, _ = bits.Mul64(n2Digits[0], n1Digits[0])
@@ -442,9 +449,7 @@ func mul512Rsh320Round(n1Digits, n2Digits [4]uint64) Element {
 	if !LessThanOrderWords(words) {
 		panic("scalar: invalid element")
 	}
-	var out Element
-	out.setWordsUnchecked(words)
-	return out
+	return words
 }
 
 func elementWords(k *Element) [4]uint64 {

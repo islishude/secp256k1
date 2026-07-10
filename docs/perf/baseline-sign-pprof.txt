@@ -1,0 +1,21 @@
+File: secp256k1.test
+Type: cpu
+Benchmark: BenchmarkSignRecoverable
+Duration: 3.84s, Total samples = 3.30s
+
+      flat  flat%   cum%  function
+     1.05s 31.82% 33.33% internal/fiat/basefield.Mul
+     0.56s 16.97% 17.58% internal/fiat/scalarfield.Square
+     0.44s 13.33% 13.33% internal/fiat/basefield.Square
+     0.34s 10.30% 10.61% internal/field.(*Element).Select
+     0.12s  3.64% 13.03% (*affinePoint).selectPoint
+     0.12s  3.64%  3.94% internal/fiat/basefield.Add
+     0.08s  2.42%  2.42% crypto/internal/fips140/sha256.blockSHA2
+     0.08s  2.42%  2.42% internal/fiat/basefield.Sub
+     0.05s  1.52% 56.67% scalarBaseMultProjective
+     0.03s  0.91% 40.30% (*projectivePoint).addCompleteMixed
+     0.01s  0.30% 19.70% internal/scalar.scalarInv
+
+Full-profile headline: scalarBaseMultProjective is 56.67% cumulative, its
+complete mixed additions are 40.30%, and constant-time scalar inversion is
+19.70% cumulative.

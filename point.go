@@ -62,7 +62,7 @@ func (p *point) affine() (field.Element, field.Element, bool) {
 	return x, y, true
 }
 
-func (p *point) double(q *point) *point {
+func (p *point) doubleSquare(q *point) *point {
 	if q.isInfinity() || q.y.IsZero() {
 		return p.setInfinity()
 	}
@@ -96,6 +96,40 @@ func (p *point) double(q *point) *point {
 	t.Double(&t)
 	y3.Sub(&y3, &t)
 
+	z3.Mul(&y1, &z1)
+	z3.Double(&z3)
+
+	p.x.Set(&x3)
+	p.y.Set(&y3)
+	p.z.Set(&z3)
+	return p
+}
+
+func (p *point) double(q *point) *point {
+	if q.isInfinity() || q.y.IsZero() {
+		return p.setInfinity()
+	}
+	x1, y1, z1 := q.x, q.y, q.z
+	var xx, yy, yyyy, s, m, t field.Element
+	xx.Square(&x1)
+	yy.Square(&y1)
+	yyyy.Square(&yy)
+	s.Mul(&x1, &yy)
+	s.Double(&s)
+	s.Double(&s)
+	m.Double(&xx)
+	m.Add(&m, &xx)
+
+	var x3, y3, z3 field.Element
+	x3.Square(&m)
+	t.Double(&s)
+	x3.Sub(&x3, &t)
+	t.Sub(&s, &x3)
+	y3.Mul(&m, &t)
+	t.Double(&yyyy)
+	t.Double(&t)
+	t.Double(&t)
+	y3.Sub(&y3, &t)
 	z3.Mul(&y1, &z1)
 	z3.Double(&z3)
 
@@ -224,10 +258,50 @@ func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
 	return p
 }
 
-func (p *point) neg(q *point) *point {
-	p.x.Set(&q.x)
-	p.y.Neg(&q.y)
-	p.z.Set(&q.z)
+// addAffineWNAFVartime adds a public affine wNAF table point to p1 using an
+// incomplete mixed-add formula. Exceptional equal/opposite points fall back to
+// the complete behavior in addAffine. It must only be used on public inputs.
+func (p *point) addAffineWNAFVartime(p1 *point, x2, y2 *field.Element) *point {
+	if p1.isInfinity() {
+		return p.setAffine(x2, y2)
+	}
+	x1, y1, z1 := p1.x, p1.y, p1.z
+	var z1z1, u2, s2, h, r field.Element
+	var hh, hhh, v, t field.Element
+
+	z1z1.Square(&z1)
+	u2.Mul(x2, &z1z1)
+	t.Mul(&z1, &z1z1)
+	s2.Mul(y2, &t)
+	h.Sub(&u2, &x1)
+	r.Sub(&s2, &y1)
+	if h.IsZero() {
+		return p.addAffine(p1, x2, y2)
+	}
+
+	// Unscaled Jacobian mixed addition:
+	// X3 = R^2 - H^3 - 2*X1*H^2
+	// Y3 = R*(X1*H^2 - X3) - Y1*H^3
+	// Z3 = Z1*H
+	hh.Square(&h)
+	hhh.Mul(&h, &hh)
+	v.Mul(&x1, &hh)
+
+	var x3, y3, z3 field.Element
+	x3.Square(&r)
+	x3.Sub(&x3, &hhh)
+	t.Double(&v)
+	x3.Sub(&x3, &t)
+
+	t.Sub(&v, &x3)
+	y3.Mul(&r, &t)
+	t.Mul(&y1, &hhh)
+	y3.Sub(&y3, &t)
+
+	z3.Mul(&z1, &h)
+	p.x.Set(&x3)
+	p.y.Set(&y3)
+	p.z.Set(&z3)
 	return p
 }
 
@@ -250,6 +324,13 @@ func (p *projectivePoint) setInfinity() *projectivePoint {
 	p.x.SetZero()
 	p.y.SetOne()
 	p.z.SetZero()
+	return p
+}
+
+func (p *projectivePoint) setAffine(q *affinePoint) *projectivePoint {
+	p.x.Set(&q.x)
+	p.y.Set(&q.y)
+	p.z.SetOne()
 	return p
 }
 
