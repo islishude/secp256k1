@@ -6,9 +6,13 @@ import (
 )
 
 const (
-	baseWindow    = 5
-	baseWindows   = (256 + baseWindow - 1) / baseWindow
-	baseTableSize = 1 << (baseWindow - 1)
+	baseWindow           = 5
+	baseWindows          = (256 + baseWindow - 1) / baseWindow
+	baseTableSize        = 1 << (baseWindow - 1)
+	verifyCombWidth      = 7
+	verifyCombRows       = (256 + verifyCombWidth - 1) / verifyCombWidth
+	verifyCombTableSize  = 1 << verifyCombWidth
+	verifyCombBuildAfter = 8
 )
 
 func scalarBaseMult(k *scalar.Element) point {
@@ -160,6 +164,40 @@ func doubleScalarBaseMultVartime(k1 *scalar.Element, p2 *point, k2 *scalar.Eleme
 	p2Table := newAffineOddTable(p2)
 	p2EndoTable := newEndomorphismWNAFTable(&p2Table)
 	return doubleScalarBaseMultPrecomputedVartime(k1, k2, &p2Table, &p2EndoTable)
+}
+
+// doubleScalarBaseMultCombVartime computes k1*G + k2*P using fixed-base comb
+// tables. The scalars, table indices, and both points are public inputs.
+func doubleScalarBaseMultCombVartime(k1, k2 *scalar.Element, p2Table *[verifyCombTableSize]affinePoint) point {
+	k1Words := k1.Words()
+	k2Words := k2.Words()
+	var r point
+	r.setInfinity()
+	for row := verifyCombRows - 1; row >= 0; row-- {
+		r.double(&r)
+		addCombPointVartime(&r, &generatorCombTable, verifyCombDigit(&k1Words, row))
+		addCombPointVartime(&r, p2Table, verifyCombDigit(&k2Words, row))
+	}
+	return r
+}
+
+func verifyCombDigit(words *[4]uint64, row int) byte {
+	var digit byte
+	for column := range verifyCombWidth {
+		bit := row + column*verifyCombRows
+		if bit < 256 {
+			digit |= byte((words[bit/64]>>uint(bit%64))&1) << uint(column)
+		}
+	}
+	return digit
+}
+
+func addCombPointVartime(r *point, table *[verifyCombTableSize]affinePoint, digit byte) {
+	if digit == 0 {
+		return
+	}
+	entry := &table[digit]
+	r.addAffineWNAFVartime(r, &entry.x, &entry.y)
 }
 
 // doubleScalarBaseMultPrecomputedVartime computes k1*G + k2*P with variable-time

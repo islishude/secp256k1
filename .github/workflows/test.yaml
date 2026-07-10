@@ -31,6 +31,24 @@ jobs:
       - run: make generate-check
       - run: go test -v -race -count=1 -cover ./...
 
+  test-arm64-asm:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-24.04-arm
+          - macos-26
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - run: go build -tags=secp256k1_asm ./...
+      - run: go vet -tags=secp256k1_asm ./...
+      - run: go test -race -tags=secp256k1_asm -count=1 ./...
+      - run: SECP256K1_CT_TEST=1 go test -tags=secp256k1_asm -run TestConstantTimeScalarBaseMultSmoke -count=1 .
+
   check-benchmark:
     runs-on: ubuntu-latest
     defaults:

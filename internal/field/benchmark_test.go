@@ -1,8 +1,13 @@
 package field
 
-import "testing"
+import (
+	"testing"
+
+	fiat "github.com/islishude/secp256k1/internal/fiat/basefield"
+)
 
 var benchmarkElementSink Element
+var benchmarkFiatElementSink fiat.MontgomeryDomainFieldElement
 
 func BenchmarkFieldMul(b *testing.B) {
 	x := benchmarkElement(0x1234567890abcdef)
@@ -21,12 +26,56 @@ func BenchmarkFieldSquare(b *testing.B) {
 	}
 }
 
+func BenchmarkFieldMulFiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	y := benchmarkElement(0xfedcba9876543210)
+	b.ReportAllocs()
+	for b.Loop() {
+		fiat.Mul(&benchmarkFiatElementSink, &x.x, &y.x)
+	}
+}
+
+func BenchmarkFieldSquareFiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		fiat.Square(&benchmarkFiatElementSink, &x.x)
+	}
+}
+
 func BenchmarkFieldAdd(b *testing.B) {
 	x := benchmarkElement(0x1234567890abcdef)
 	y := benchmarkElement(0xfedcba9876543210)
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkElementSink.Add(&x, &y)
+	}
+}
+
+func BenchmarkFieldAddFiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	y := benchmarkElement(0xfedcba9876543210)
+	b.ReportAllocs()
+	for b.Loop() {
+		fiat.Add(&benchmarkFiatElementSink, &x.x, &y.x)
+	}
+}
+
+func BenchmarkFieldSub(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	y := benchmarkElement(0xfedcba9876543210)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkElementSink.Sub(&x, &y)
+	}
+}
+
+func BenchmarkFieldSubFiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	y := benchmarkElement(0xfedcba9876543210)
+	b.ReportAllocs()
+	for b.Loop() {
+		fiat.Sub(&benchmarkFiatElementSink, &x.x, &y.x)
 	}
 }
 

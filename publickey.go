@@ -1,6 +1,11 @@
 package secp256k1
 
-import "github.com/islishude/secp256k1/internal/field"
+import (
+	"sync"
+	"sync/atomic"
+
+	"github.com/islishude/secp256k1/internal/field"
+)
 
 // PublicKey is a secp256k1 verification key represented by an affine curve
 // point.
@@ -15,6 +20,9 @@ type PublicKey struct {
 type publicKeyPrecompute struct {
 	wnafTable     [varWNAFTableSize]affinePoint
 	endoWNAFTable [varWNAFTableSize]affinePoint
+	verifyUses    atomic.Uint32
+	combOnce      sync.Once
+	combTable     *[verifyCombTableSize]affinePoint
 }
 
 // ParsePublicKey parses a SEC 1 compressed or uncompressed public key.

@@ -149,7 +149,13 @@ Run the benchmark submodule:
 
 ```sh
 cd benchmark
-go test -bench=. -benchmem -count=5
+go test -bench=. -benchmem -count=10
+```
+
+Compare median `ns/op` values from two saved Go benchmark outputs:
+
+```sh
+go run ./cmd/benchcmp baseline.txt candidate.txt
 ```
 
 Run DER fuzz or the optional timing smoke test:
@@ -158,6 +164,18 @@ Run DER fuzz or the optional timing smoke test:
 make fuzz-smoke
 make ct-smoke
 ```
+
+On ARM64, an experimental Montgomery arithmetic backend can be enabled
+explicitly for testing and benchmarking:
+
+```sh
+make test-arm64-asm
+make perf-check-arm64
+```
+
+The backend is selected with the `secp256k1_asm` build tag. It is not enabled
+by default and must receive independent arithmetic, ABI, and constant-time
+review before any default-enable change.
 
 Regenerate low-level generated code:
 
@@ -175,11 +193,12 @@ This library implements common secp256k1 ECDSA digest-level APIs, but this
 repository does not claim a third-party security audit. `PrivateKey.Destroy`
 and signing-path cleanup are best-effort only; Go does not guarantee hard memory
 erasure. Signing and public-key derivation are intended to avoid secret-indexed
-table lookups and secret-dependent low-S branching; verification uses
-public-input variable-time wNAF/GLV code. Before using this library for
-production funds or high-value keys, validate it against your audit standards,
-test vectors, side-channel requirements, and higher-level protocol rules.
+table lookups and secret-dependent low-S branching; verification adaptively
+uses public-input variable-time wNAF/GLV and fixed-base comb code. Before using
+this library for production funds or high-value keys, validate it against your
+audit standards, test vectors, side-channel requirements, and higher-level
+protocol rules.
 
 ## License
 
-MIT. License details for fiat-crypto generated code are in `internal/fiat`.
+MIT. Third-party license details are in `LICENSES` and `internal/fiat`.

@@ -37,11 +37,30 @@ func (p PublicKey) verifyDigest(digest Digest, sig *[SignatureSize]byte, require
 	u2.Mul(&r, &w)
 
 	// ECDSA verification checks that x((e/s)G + (r/s)Q) mod n equals r.
-	sum := doubleScalarBaseMultPrecomputedVartime(&u1, &u2, &p.precomputed.wnafTable, &p.precomputed.endoWNAFTable)
+	sum := p.doubleScalarBaseMultVartime(&u1, &u2)
 	if sum.isInfinity() {
 		return false
 	}
 	return jacobianXEqualsScalar(&sum, &r)
+}
+
+func (p PublicKey) doubleScalarBaseMultVartime(k1, k2 *scalar.Element) point {
+	if p.precomputed.verifyUses.Add(1) <= verifyCombBuildAfter {
+		return doubleScalarBaseMultPrecomputedVartime(
+			k1,
+			k2,
+			&p.precomputed.wnafTable,
+			&p.precomputed.endoWNAFTable,
+		)
+	}
+
+	p.precomputed.combOnce.Do(func() {
+		var q point
+		q.setAffine(&p.x, &p.y)
+		table := newVerifyCombTable(&q)
+		p.precomputed.combTable = &table
+	})
+	return doubleScalarBaseMultCombVartime(k1, k2, p.precomputed.combTable)
 }
 
 func jacobianXEqualsScalar(p *point, x *scalar.Element) bool {

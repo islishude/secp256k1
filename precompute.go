@@ -1,6 +1,10 @@
 package secp256k1
 
-import "github.com/islishude/secp256k1/internal/field"
+import (
+	"math/bits"
+
+	"github.com/islishude/secp256k1/internal/field"
+)
 
 //go:generate go run ./cmd/genprecomp
 
@@ -95,6 +99,34 @@ func newGeneratorEndomorphismWNAFTable(table *[generatorWNAFSize]affinePoint) [g
 	return out
 }
 
+func newVerifyCombTable(p *point) [verifyCombTableSize]affinePoint {
+	var bases [verifyCombWidth]point
+	bases[0].set(p)
+	for i := 1; i < len(bases); i++ {
+		bases[i].set(&bases[i-1])
+		for range verifyCombRows {
+			bases[i].double(&bases[i])
+		}
+	}
+
+	var projective [verifyCombTableSize - 1]point
+	for digit := 1; digit < verifyCombTableSize; digit++ {
+		bit := bits.TrailingZeros(uint(digit))
+		previous := digit & (digit - 1)
+		if previous == 0 {
+			projective[digit-1].set(&bases[bit])
+		} else {
+			projective[digit-1].add(&projective[previous-1], &bases[bit])
+		}
+	}
+
+	normalized := batchNormalizeVerifyComb(projective)
+	var table [verifyCombTableSize]affinePoint
+	table[0].infinity = 1
+	copy(table[1:], normalized[:])
+	return table
+}
+
 func loadGeneratorAffineTableW5(words *[baseWindows][baseTableSize][8]uint64) [baseWindows][baseTableSize]affinePoint {
 	var table [baseWindows][baseTableSize]affinePoint
 	for i := range table {
@@ -124,6 +156,20 @@ func loadGeneratorWNAFTables(
 		endoTable[i].y.SetMontgomeryWords(yWords)
 	}
 	return table, endoTable
+}
+
+func loadGeneratorCombTable(words *[verifyCombTableSize - 1][8]uint64) [verifyCombTableSize]affinePoint {
+	var table [verifyCombTableSize]affinePoint
+	table[0].infinity = 1
+	for i := range words {
+		table[i+1].x.SetMontgomeryWords([4]uint64{
+			words[i][0], words[i][1], words[i][2], words[i][3],
+		})
+		table[i+1].y.SetMontgomeryWords([4]uint64{
+			words[i][4], words[i][5], words[i][6], words[i][7],
+		})
+	}
+	return table
 }
 
 func batchNormalize(points [varWNAFTableSize]point) [varWNAFTableSize]affinePoint {
@@ -217,6 +263,31 @@ func batchNormalize16(points [16]point) [16]affinePoint {
 	accInv.Inv(&acc)
 
 	var out [16]affinePoint
+	for i := len(points) - 1; i >= 0; i-- {
+		var zInv, z2, z3 field.Element
+		zInv.Mul(&accInv, &prefixes[i])
+		accInv.Mul(&accInv, &points[i].z)
+		z2.Square(&zInv)
+		z3.Mul(&z2, &zInv)
+		out[i].x.Mul(&points[i].x, &z2)
+		out[i].y.Mul(&points[i].y, &z3)
+	}
+	return out
+}
+
+func batchNormalizeVerifyComb(points [verifyCombTableSize - 1]point) [verifyCombTableSize - 1]affinePoint {
+	var prefixes [verifyCombTableSize - 1]field.Element
+	var acc field.Element
+	acc.SetOne()
+	for i := range points {
+		prefixes[i].Set(&acc)
+		acc.Mul(&acc, &points[i].z)
+	}
+
+	var accInv field.Element
+	accInv.Inv(&acc)
+
+	var out [verifyCombTableSize - 1]affinePoint
 	for i := len(points) - 1; i >= 0; i-- {
 		var zInv, z2, z3 field.Element
 		zInv.Mul(&accInv, &prefixes[i])

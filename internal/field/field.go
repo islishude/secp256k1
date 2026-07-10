@@ -150,13 +150,13 @@ func (z *Element) Select(x, y *Element, choice uint64) *Element {
 
 // Add assigns z = x + y mod p.
 func (z *Element) Add(x, y *Element) *Element {
-	fiat.Add(&z.x, &x.x, &y.x)
+	addMontgomery(&z.x, &x.x, &y.x)
 	return z
 }
 
 // Sub assigns z = x - y mod p.
 func (z *Element) Sub(x, y *Element) *Element {
-	fiat.Sub(&z.x, &x.x, &y.x)
+	subMontgomery(&z.x, &x.x, &y.x)
 	return z
 }
 
@@ -173,13 +173,13 @@ func (z *Element) Double(x *Element) *Element {
 
 // Mul assigns z = x*y mod p.
 func (z *Element) Mul(x, y *Element) *Element {
-	fiat.Mul(&z.x, &x.x, &y.x)
+	mulMontgomery(&z.x, &x.x, &y.x)
 	return z
 }
 
 // Square assigns z = x^2 mod p.
 func (z *Element) Square(x *Element) *Element {
-	fiat.Square(&z.x, &x.x)
+	squareMontgomery(&z.x, &x.x)
 	return z
 }
 

@@ -1,7 +1,11 @@
-.PHONY: test lint benchmark perf-check check-main-deps vartime-audit generate-check fuzz-smoke ct-smoke format
+.PHONY: test test-arm64-asm lint benchmark perf-check perf-check-arm64 check-main-deps vartime-audit generate-check fuzz-smoke ct-smoke format
 test:
 	go test -v -count=1 -cover -race ./...
 	cd benchmark && go test .
+
+test-arm64-asm:
+	go test -tags=secp256k1_asm ./...
+	go test -race -tags=secp256k1_asm ./...
 
 lint: format
 	golangci-lint run
@@ -12,6 +16,9 @@ benchmark:
 
 perf-check:
 	go test -run '^$$' -bench '^Benchmark(VerifyHotPublicKey|SignRecoverable|RecoverDigest)$$' -benchmem -count=5 .
+
+perf-check-arm64:
+	go test -tags=secp256k1_asm -run '^$$' -bench '^Benchmark(VerifyHotPublicKey|SignRecoverable|RecoverDigest)$$' -benchmem -count=5 .
 
 check-main-deps:
 	@mods="$$(go list -m all)"; count="$$(printf '%s\n' "$$mods" | sed '/^$$/d' | wc -l | tr -d ' ')"; \

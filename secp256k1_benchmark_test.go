@@ -338,6 +338,27 @@ func BenchmarkDoubleScalarBaseMultPrecomputedVartime(b *testing.B) {
 	}
 }
 
+func BenchmarkDoubleScalarBaseMultCombVartime(b *testing.B) {
+	m := newBenchmarkMaterial(b)
+	var k1, k2 scalar.Element
+	k1.SetBytesModOrder(&m.digest)
+	_, k2, ok := parseSignature((*[SignatureSize]byte)(m.signature[:]), false)
+	if !ok {
+		b.Fatal("invalid benchmark signature")
+	}
+	var q point
+	q.setAffine(&m.publicKey.x, &m.publicKey.y)
+	combTable := newVerifyCombTable(&q)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkPointSink = doubleScalarBaseMultCombVartime(
+			&k1,
+			&k2,
+			&combTable,
+		)
+	}
+}
+
 func BenchmarkScalarBaseMultProjective(b *testing.B) {
 	m := newBenchmarkMaterial(b)
 	var k scalar.Element

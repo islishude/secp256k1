@@ -68,3 +68,33 @@ func TestDoubleScalarWordsMatchesLegacy(t *testing.T) {
 		}
 	}
 }
+
+func TestDoubleScalarCombMatchesWNAF(t *testing.T) {
+	var qScalar scalar.Element
+	qScalar.SetUint64(42)
+	q := scalarBaseMult(&qScalar)
+	wnafTable := newAffineOddTable(&q)
+	endoTable := newEndomorphismWNAFTable(&wnafTable)
+	combTable := newVerifyCombTable(&q)
+
+	state := uint64(0xa4093822299f31d0)
+	for range 500 {
+		var k1Words, k2Words [4]uint64
+		for i := range k1Words {
+			state = state*6364136223846793005 + 1442695040888963407
+			k1Words[i] = state
+			state = state*6364136223846793005 + 1442695040888963407
+			k2Words[i] = state
+		}
+		var k1, k2 scalar.Element
+		k1.SetWordsModOrder(k1Words)
+		k2.SetWordsModOrder(k2Words)
+		got := doubleScalarBaseMultCombVartime(&k1, &k2, &combTable)
+		want := doubleScalarBaseMultPrecomputedVartime(&k1, &k2, &wnafTable, &endoTable)
+		gotX, gotY, gotOK := got.affine()
+		wantX, wantY, wantOK := want.affine()
+		if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
+			t.Fatalf("comb mismatch for %x/%x", k1.Bytes(), k2.Bytes())
+		}
+	}
+}
