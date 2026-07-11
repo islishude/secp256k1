@@ -44,14 +44,14 @@ go test -bench=. -benchmem -count=10
 
 | Operation        | Implementation | Median ns/op |  B/op | allocs/op |
 | ---------------- | -------------- | -----------: | ----: | --------: |
-| Compact sign     | Local          |       24,600 |     0 |         0 |
-| Compact sign     | Decred         |       33,745 | 1,512 |        28 |
-| Recoverable sign | Local          |       24,681 |     0 |         0 |
-| Recoverable sign | Decred         |       34,562 | 1,592 |        29 |
-| Recoverable sign | Geth           |       17,154 |   164 |         3 |
-| Verify           | Local          |       20,898 |     0 |         0 |
-| Verify           | Decred         |      124,515 |   568 |        12 |
-| Verify           | Geth           |       18,105 |     0 |         0 |
+| Compact sign     | Local          |       24,884 |     0 |         0 |
+| Compact sign     | Decred         |       34,024 | 1,512 |        28 |
+| Recoverable sign | Local          |       24,909 |     0 |         0 |
+| Recoverable sign | Decred         |       33,926 | 1,592 |        29 |
+| Recoverable sign | Geth           |       16,167 |   164 |         3 |
+| Verify           | Local          |       20,795 |     0 |         0 |
+| Verify           | Decred         |      117,965 |   568 |        12 |
+| Verify           | Geth           |       19,183 |     0 |         0 |
 
 ## Conclusions
 
@@ -59,12 +59,12 @@ go test -bench=. -benchmem -count=10
   verification on this machine.
 - Local compact signing is about 1.37x faster than Decred compact signing while
   using zero benchmark-time allocations.
-- Local recoverable signing is about 1.40x faster than Decred recoverable
+- Local recoverable signing is about 1.36x faster than Decred recoverable
   signing while using zero benchmark-time allocations.
-- Local verification is about 5.96x faster than Decred verification while using
+- Local verification is about 5.67x faster than Decred verification while using
   zero benchmark-time allocations.
-- Local recoverable signing is about 1.44x slower than geth, and Local
-  verification is about 1.15x slower than geth on this machine.
+- Local recoverable signing is about 1.54x slower than geth, and Local
+  verification is about 1.08x slower than geth on this machine.
 
 The staged local before/after measurements, including hot/cold public-key
 workloads and internal microbenchmarks, are recorded under `../docs/perf/`.

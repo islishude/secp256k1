@@ -3,6 +3,8 @@ package field
 import (
 	"math/big"
 	"testing"
+
+	fiat "github.com/islishude/secp256k1/internal/fiat/basefield"
 )
 
 var modulusBig = new(big.Int).SetBytes(Modulus[:])
@@ -40,6 +42,86 @@ func TestElementArithmeticAgainstBig(t *testing.T) {
 			want.Mod(want, modulusBig)
 			assertFieldBig(t, &got, want)
 		}
+	}
+}
+
+func TestMulDifferential(t *testing.T) {
+	check := func(i int, x, y *Element) {
+		t.Helper()
+		var want Element
+		fiat.Mul(&want.x, &x.x, &y.x)
+
+		var got Element
+		got.Mul(x, y)
+		if !got.Equal(&want) {
+			t.Fatalf("Mul mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+		got.Set(x)
+		got.Mul(&got, y)
+		if !got.Equal(&want) {
+			t.Fatalf("Mul out==x mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+		got.Set(y)
+		got.Mul(x, &got)
+		if !got.Equal(&want) {
+			t.Fatalf("Mul out==y mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+
+		fiat.Mul(&want.x, &x.x, &x.x)
+		got.Set(x)
+		got.Mul(&got, &got)
+		if !got.Equal(&want) {
+			t.Fatalf("Mul x==y alias mismatch at input %d: got %x want %x", i, got.Bytes(), want.Bytes())
+		}
+	}
+
+	edges := [][Size]byte{
+		fromHex("00"),
+		fromHex("01"),
+		fromHex("02"),
+		fromHex("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+		fromHex("fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e"),
+	}
+	caseIndex := 0
+	for _, xb := range edges {
+		for _, yb := range edges {
+			var x, y Element
+			if !x.SetBytes(&xb) || !y.SetBytes(&yb) {
+				t.Fatal("SetBytes failed for edge")
+			}
+			check(caseIndex, &x, &y)
+			caseIndex++
+		}
+	}
+	rawMax := Element{x: fiat.MontgomeryDomainFieldElement{
+		0xfffffffefffffc2e,
+		0xffffffffffffffff,
+		0xffffffffffffffff,
+		0xffffffffffffffff,
+	}}
+	check(caseIndex, &rawMax, &rawMax)
+	caseIndex++
+
+	state := uint64(0x243f6a8885a308d3)
+	for range 100_000 {
+		var xWords, yWords [4]uint64
+		for j := range xWords {
+			state = state*6364136223846793005 + 1442695040888963407
+			xWords[j] = state
+			state = state*6364136223846793005 + 1442695040888963407
+			yWords[j] = state
+		}
+		if !LessThanModulusWords(xWords) {
+			xWords[3] = 0
+		}
+		if !LessThanModulusWords(yWords) {
+			yWords[3] = 0
+		}
+		var x, y Element
+		x.SetNonMontgomeryWords(xWords)
+		y.SetNonMontgomeryWords(yWords)
+		check(caseIndex, &x, &y)
+		caseIndex++
 	}
 }
 

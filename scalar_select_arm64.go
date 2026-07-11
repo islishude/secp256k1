@@ -13,15 +13,15 @@ func scalarBaseMultProjective(k *scalar.Element) projectivePoint {
 	var r projectivePoint
 	r.setInfinity()
 	var carry uint64
-	for i := range generatorAffineTableW5Words {
-		value := uint64(fixedWindowDigit(&words, uint(i), baseWindow)) + carry
-		negative := (value + (1 << (baseWindow - 1))) >> baseWindow
+	for i := range generatorAffineTableW6Words {
+		value := uint64(fixedWindowDigit(&words, uint(i), baseWindowW6)) + carry
+		negative := (value + (1 << (baseWindowW6 - 1))) >> baseWindowW6
 		negativeMask := uint64(0) - negative
-		digitBits := value - negative*(1<<baseWindow)
+		digitBits := value - negative*(1<<baseWindowW6)
 		magnitude := (digitBits ^ negativeMask) + negative
 
 		var selected [8]uint64
-		selectGeneratorW5(&selected, &generatorAffineTableW5Words[i], magnitude)
+		selectGeneratorW6(&selected, &generatorAffineTableW6Words[i], magnitude)
 		var affine affinePoint
 		affine.x.SetMontgomeryWords([4]uint64{selected[0], selected[1], selected[2], selected[3]})
 		affine.y.SetMontgomeryWords([4]uint64{selected[4], selected[5], selected[6], selected[7]})
@@ -40,8 +40,8 @@ func scalarBaseMultProjective(k *scalar.Element) projectivePoint {
 	return r
 }
 
-// selectGeneratorW5 scans all sixteen packed points with a fixed NEON
+// selectGeneratorW6 scans all thirty-two packed points with a fixed NEON
 // instruction sequence. magnitude is secret and is never used as an address.
 //
 //go:noescape
-func selectGeneratorW5(out *[8]uint64, table *[baseTableSize][8]uint64, magnitude uint64)
+func selectGeneratorW6(out *[8]uint64, table *[baseTableSizeW6][8]uint64, magnitude uint64)

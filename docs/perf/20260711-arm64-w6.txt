@@ -1,0 +1,200 @@
+# Tagged W5 baseline
+
+Command:
+go test -tags=secp256k1_asm -run=^$ -bench=... -benchmem -count=10 .
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/islishude/secp256k1
+cpu: Apple M3 Max
+BenchmarkVerifyHotPublicKey-16             	   55428	     20087 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60516	     20261 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   58075	     20867 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60831	     19776 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60550	     19760 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60595	     19792 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60610	     19739 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60775	     19738 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   60820	     19672 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61302	     19805 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20598	     58231 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20689	     57975 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20642	     58068 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20617	     58069 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20619	     58157 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20697	     58166 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20338	     59294 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20017	     59073 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20660	     58192 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   19988	     59911 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21201	     55847 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21879	     54838 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21560	     55342 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21684	     55286 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21669	     55488 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21150	     56858 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21654	     55181 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21919	     55100 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21733	     55390 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   21781	     55140 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkSignRecoverable-16                	   65401	     18386 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65356	     18402 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   63279	     18870 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   64892	     18487 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65181	     18396 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65379	     18454 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65020	     18452 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65185	     18442 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65140	     18407 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   65176	     18436 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123180	      9729 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123716	      9688 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123888	      9686 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123883	      9709 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  122991	      9827 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123528	      9699 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123505	      9733 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123674	      9741 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123844	      9694 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  123981	      9737 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/islishude/secp256k1	60.848s
+```
+
+# Tagged W6 retained candidate
+
+Command:
+go test -tags=secp256k1_asm -run=^$ -bench=... -benchmem -count=10 .
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/islishude/secp256k1
+cpu: Apple M3 Max
+BenchmarkVerifyHotPublicKey-16             	   55987	     19865 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61598	     19459 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61676	     19451 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61689	     19455 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61785	     19451 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61728	     19467 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61480	     19468 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61538	     19476 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61653	     19476 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyHotPublicKey-16             	   61689	     19476 ns/op	       0 B/op	       0 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20890	     57357 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20952	     57330 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20949	     57326 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20930	     57410 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20925	     57396 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20890	     57398 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20910	     57298 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20952	     57335 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20931	     57363 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseCompressedCold-16      	   20892	     57330 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22047	     54375 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22118	     54264 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22128	     54188 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22075	     54412 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22135	     54286 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22153	     54250 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22174	     54227 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22146	     54221 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22116	     54222 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkVerifyParseUncompressedCold-16    	   22129	     54163 ns/op	    9472 B/op	       1 allocs/op
+BenchmarkSignRecoverable-16                	   70333	     17056 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   70315	     17118 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   70255	     17358 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   68042	     17416 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   71095	     16804 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   71395	     16802 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   70861	     16809 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   71464	     16794 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   71468	     16771 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSignRecoverable-16                	   71036	     16778 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145375	      8246 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145174	      8252 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145366	      8259 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145153	      8268 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145323	      8259 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145119	      8271 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145377	      8276 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145243	      8262 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145155	      8262 ns/op	       0 B/op	       0 allocs/op
+BenchmarkScalarBaseMultProjective-16       	  145394	      8253 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/islishude/secp256k1	60.591s
+```
+
+# Repository benchcmp
+
+```text
+Benchmark                                                baseline    candidate     delta
+BenchmarkScalarBaseMultProjective                         9719.00      8260.50   -15.01%
+BenchmarkSignRecoverable                                 18439.00     16806.50    -8.85%
+BenchmarkVerifyHotPublicKey                              19784.00     19467.50    -1.60%
+BenchmarkVerifyParseCompressedCold                       58179.00     57346.00    -1.43%
+BenchmarkVerifyParseUncompressedCold                     55314.00     54238.50    -1.94%
+```
+
+# Adjacent default verification comparison
+
+```text
+Benchmark                                                baseline    candidate     delta
+BenchmarkVerifyHotPublicKey                              20760.00     20870.00    +0.53%
+BenchmarkVerifyParseCompressedCold                       65215.50     65832.00    +0.95%
+BenchmarkVerifyParseUncompressedCold                     63878.00     61129.00    -4.30%
+```
+
+# Symbols, selector, and binary sizes
+
+```text
+1003cc2e0      53248 D github.com/islishude/secp256k1.generatorAffineTableW5Words
+1003dc2c0      88064 D github.com/islishude/secp256k1.generatorAffineTableW6Words
+1001a6db0       1024 T github.com/islishude/secp256k1.selectGeneratorW6.abi0
+branches=0 VLD1=32 CMP=31 CSETM=31
+ 6357378 /tmp/secp256k1-w6-audit-final.test
+ 6324482 /tmp/secp256k1-w6-baseline.test
+ 12681860 total
+```
+
+# Five-second retained signing profile benchmark
+
+```text
+goos: darwin
+goarch: arm64
+pkg: github.com/islishude/secp256k1
+cpu: Apple M3 Max
+BenchmarkSignRecoverable-16    	  317368	     17144 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/islishude/secp256k1	8.802s
+```
+
+# Five-second retained signing profile top
+
+```text
+Showing nodes accounting for 4.90s, 96.84% of 5.06s total
+      flat  flat%   sum%        cum   cum%
+     1.71s 33.79% 33.79%      1.76s 34.78%  github.com/islishude/secp256k1/internal/fiat/basefield.Mul
+     0.98s 19.37% 53.16%      0.98s 19.37%  github.com/islishude/secp256k1/internal/field.squareMontgomeryN
+     0.84s 16.60% 69.76%      0.84s 16.60%  github.com/islishude/secp256k1/internal/scalar.squareMontgomeryN
+     0.27s  5.34% 75.10%      0.27s  5.34%  github.com/islishude/secp256k1/internal/fiat/scalarfield.Mul
+     0.27s  5.34% 80.43%      0.27s  5.34%  github.com/islishude/secp256k1/internal/field.addMontgomery
+     0.22s  4.35% 84.78%      0.22s  4.35%  github.com/islishude/secp256k1.selectGeneratorW6
+     0.05s  0.99% 92.49%      2.40s 47.43%  github.com/islishude/secp256k1.scalarBaseMultProjective
+         0     0% 96.84%      1.99s 39.33%  github.com/islishude/secp256k1.(*projectivePoint).addCompleteMixed
+         0     0% 96.84%      1.14s 22.53%  github.com/islishude/secp256k1.(*projectivePoint).affine
+```
+
+# Benchmark submodule ten-run medians
+
+```text
+BenchmarkDecredSignCompact-16 34024.0
+BenchmarkDecredSignRecoverable-16 33925.5
+BenchmarkDecredVerify-16 117965.0
+BenchmarkGethSignRecoverable-16 16167.0
+BenchmarkGethVerify-16 19183.0
+BenchmarkLocalSignCompact-16 24884.0
+BenchmarkLocalSignRecoverable-16 24909.0
+BenchmarkLocalVerify-16 20795.0
+```

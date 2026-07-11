@@ -9,6 +9,9 @@ const (
 	baseWindow           = 5
 	baseWindows          = (256 + baseWindow - 1) / baseWindow
 	baseTableSize        = 1 << (baseWindow - 1)
+	baseWindowW6         = 6
+	baseWindowsW6        = (256 + baseWindowW6 - 1) / baseWindowW6
+	baseTableSizeW6      = 1 << (baseWindowW6 - 1)
 	verifyCombWidth      = 7
 	verifyCombRows       = (256 + verifyCombWidth - 1) / verifyCombWidth
 	verifyCombTableSize  = 1 << verifyCombWidth

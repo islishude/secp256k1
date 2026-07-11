@@ -51,9 +51,11 @@ improved both cold parse workloads:
 - The standalone scalar Square assembly candidate improved its microbenchmark
   by 15.4%, below the required 20% gate. It was removed; scalar `Square` still
   calls fiat-crypto, while the independently successful `SquareN` remains.
-- W6 retuning and fused complete-mixed-add assembly were skipped because W5
-  reached the final signing target. The verification comb remains width 7 and
-  retains the existing per-public-key memory policy.
+- W6 retuning was skipped in this phase because W5 reached its signing target.
+  It was subsequently evaluated as an isolated follow-up and retained for the
+  opt-in ARM64 backend; see [`20260711-arm64-w6.md`](20260711-arm64-w6.md).
+  Fused complete-mixed-add assembly remains out of scope. The verification comb
+  remains width 7 and retains the existing per-public-key memory policy.
 
 ## Security and validation
 

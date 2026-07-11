@@ -178,7 +178,7 @@ by default and must receive independent arithmetic, ABI, and constant-time
 review before any default-enable change.
 
 The latest retained ARM64 measurements and security gates are recorded in
-[`docs/perf/20260711-arm64-sign-sprint.md`](docs/perf/20260711-arm64-sign-sprint.md).
+[`docs/perf/20260711-arm64-field-mul.md`](docs/perf/20260711-arm64-field-mul.md).
 
 Regenerate low-level generated code:
 

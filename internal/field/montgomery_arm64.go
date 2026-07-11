@@ -15,9 +15,8 @@ func subMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 	fiat.Sub(out, x, y)
 }
 
-func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
-	fiat.Mul(out, x, y)
-}
+//go:noescape
+func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement)
 
 //go:noescape
 func mulByB3Montgomery(out, x *fiat.MontgomeryDomainFieldElement)

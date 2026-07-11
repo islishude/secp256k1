@@ -7,13 +7,7 @@ import (
 	"github.com/islishude/secp256k1/internal/scalar"
 )
 
-const (
-	baseWindowW6    = 6
-	baseWindowsW6   = (256 + baseWindowW6 - 1) / baseWindowW6
-	baseTableSizeW6 = 1 << (baseWindowW6 - 1)
-)
-
-func TestScalarBaseMultProjectiveW5MatchesW4(t *testing.T) {
+func TestScalarBaseMultProjectiveMatchesWindowOracles(t *testing.T) {
 	w4Table := newGeneratorAffineTableW4()
 	w5Table := newGeneratorAffineTableW5()
 	w6Table := newGeneratorAffineTableW6ForTest()
@@ -21,6 +15,8 @@ func TestScalarBaseMultProjectiveW5MatchesW4(t *testing.T) {
 		must32("00"),
 		must32("01"),
 		must32("02"),
+		must32("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+		must32("8000000000000000000000000000000000000000000000000000000000000000"),
 		must32("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"),
 		must32("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
 	}
@@ -48,7 +44,7 @@ func TestScalarBaseMultProjectiveW5MatchesW4(t *testing.T) {
 		gotX, gotY, gotOK := got.affine()
 		wantX, wantY, wantOK := want.affine()
 		if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
-			t.Fatalf("W5 mismatch for %x", input)
+			t.Fatalf("production fixed-base mismatch for %x", input)
 		}
 		gotW5AffineX, gotW5AffineY, gotW5AffineOK := gotW5Affine.affine()
 		if gotW5AffineOK != wantOK || gotW5AffineOK && (!gotW5AffineX.Equal(&wantX) || !gotW5AffineY.Equal(&wantY)) {
@@ -78,20 +74,6 @@ func TestFixedWindowDigit(t *testing.T) {
 			}
 			if got != byte(want) {
 				t.Fatalf("window %d digit %d = %d, want %d", window, i, got, want)
-			}
-		}
-	}
-}
-
-func TestSelectGeneratorW5(t *testing.T) {
-	for window := range generatorAffineTableW5Words {
-		table := &generatorAffineTableW5Words[window]
-		for magnitude := uint64(0); magnitude <= baseTableSize; magnitude++ {
-			var got [8]uint64
-			selectGeneratorW5(&got, table, magnitude)
-			wantIndex := max(magnitude, 1) - 1
-			if want := table[wantIndex]; got != want {
-				t.Fatalf("window %d magnitude %d selected %x, want %x", window, magnitude, got, want)
 			}
 		}
 	}

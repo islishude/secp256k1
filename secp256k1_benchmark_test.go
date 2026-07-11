@@ -21,7 +21,6 @@ var (
 	benchmarkHalfWNAFSink             [halfWNAFSize]int16
 	benchmarkSplitScalarSink          [2]scalar.SplitScalar
 	benchmarkIntSink                  int
-	benchmarkBaseTableSink            [baseWindows][baseTableSize]affinePoint
 	benchmarkGeneratorWNAFTableSink   [generatorWNAFSize]affinePoint
 )
 
@@ -381,11 +380,7 @@ func BenchmarkScalarBaseMultProjectiveW4(b *testing.B) {
 	}
 }
 
-func BenchmarkScalarBaseMultProjectiveW5(b *testing.B) {
-	BenchmarkScalarBaseMultProjective(b)
-}
-
-func BenchmarkScalarBaseMultProjectiveW6(b *testing.B) {
+func BenchmarkScalarBaseMultProjectiveW6AffineScan(b *testing.B) {
 	m := newBenchmarkMaterial(b)
 	var k scalar.Element
 	k.SetBytesModOrder(&m.digest)
@@ -438,6 +433,19 @@ func BenchmarkAddAffineWNAFVartime(b *testing.B) {
 	}
 }
 
+func BenchmarkAddCompleteMixedGo(b *testing.B) {
+	m := newBenchmarkMaterial(b)
+	var k scalar.Element
+	k.SetBytesModOrder(&m.digest)
+	p1 := scalarBaseMultProjective(&k)
+	p2 := affinePoint{x: generator.x, y: generator.y}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		benchmarkProjectivePointSink.addCompleteMixed(&p1, &p2)
+	}
+}
+
 func BenchmarkPointDouble(b *testing.B) {
 	base := generator
 	base.double(&base)
@@ -470,10 +478,8 @@ func BenchmarkCurveYFromX(b *testing.B) {
 func BenchmarkGeneratorPrecomputeDynamic(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		base := newGeneratorAffineTableW5()
 		wnaf := newGeneratorWNAFTable()
 		endo := newGeneratorEndomorphismWNAFTable(&wnaf)
-		benchmarkBaseTableSink = base
 		benchmarkGeneratorWNAFTableSink = endo
 	}
 }
@@ -481,9 +487,7 @@ func BenchmarkGeneratorPrecomputeDynamic(b *testing.B) {
 func BenchmarkGeneratorPrecomputeStaticLoad(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		base := loadGeneratorAffineTableW5(&generatorAffineTableW5Words)
 		wnaf, endo := loadGeneratorWNAFTables(&generatorWNAFTableWords, &generatorEndoWNAFXWords)
-		benchmarkBaseTableSink = base
 		benchmarkGeneratorWNAFTableSink = wnaf
 		benchmarkGeneratorWNAFTableSink = endo
 	}
