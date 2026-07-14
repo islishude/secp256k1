@@ -12,15 +12,18 @@ import (
 func TestAMD64BenchmarkKernelSelection(t *testing.T) {
 	selection := os.Getenv("SECP256K1_AMD64_BENCH_KERNEL")
 	want := amd64KernelSet{}
-	if cpufeat.HasADXAndBMI2 {
-		switch selection {
-		case "mul":
+	switch selection {
+	case "none":
+	case "mul":
+		if cpufeat.HasADXAndBMI2 {
 			want.mul = true
-		case "square":
-			want.square = true
-		default:
-			t.Fatalf("test requires one benchmark kernel, got %q", selection)
 		}
+	case "square":
+		if cpufeat.HasADXAndBMI2 {
+			want.square = true
+		}
+	default:
+		t.Fatalf("test requires a benchmark kernel selection, got %q", selection)
 	}
 	if amd64Kernels != want {
 		t.Fatalf("benchmark selection %q produced %+v, want %+v", selection, amd64Kernels, want)

@@ -27,14 +27,20 @@ func emitMul() {
 
 	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
 	emitLoadElement("x", x)
-	y := AllocLocal(32)
+	// Stage the complete second operand in SSE2 registers before arithmetic.
+	// This preserves all output/input alias forms without the stack traffic that
+	// disproportionately penalizes the Intel ADX implementation.
+	y := [2]reg.VecPhysical{reg.X0, reg.X1}
 	Load(Param("y"), reg.RAX)
-	for i := range x {
-		MOVQ(Mem{Base: reg.RAX}.Offset(i*8), reg.RDX)
-		MOVQ(reg.RDX, y.Offset(i*8))
+	for i := range y {
+		MOVOU(Mem{Base: reg.RAX}.Offset(i*16), y[i])
 	}
 	result := emitMontgomeryProduct(x, func(i int) {
-		MOVQ(y.Offset(i*8), reg.RDX)
+		pair := y[i/2]
+		if i&1 != 0 {
+			PSRLDQ(U8(8), pair)
+		}
+		MOVQ(pair, reg.RDX)
 	})
 	emitStoreResult("out", result)
 	RET()

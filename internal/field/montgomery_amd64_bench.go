@@ -17,14 +17,13 @@ func init() {
 		return
 	}
 	amd64Kernels = amd64KernelSet{}
-	if !cpufeat.HasADXAndBMI2 {
-		return
-	}
 	switch selection {
+	case "none":
+		return
 	case "mul":
-		amd64Kernels.mul = true
+		amd64Kernels.mul = cpufeat.HasADXAndBMI2
 	case "square":
-		amd64Kernels.square = true
+		amd64Kernels.square = cpufeat.HasADXAndBMI2
 	default:
 		panic("unknown SECP256K1_AMD64_BENCH_KERNEL value: " + selection)
 	}

@@ -48,6 +48,10 @@ for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
   fi
 done
 
+mul_source="${output_dir}/mulMontgomeryADXAsm.source.txt"
+test "$(grep -Ec '^[[:space:]]*MOVOU[[:space:]]' "${mul_source}")" -eq 2
+test "$(grep -Ec '^[[:space:]]*PSRLDQ[[:space:]]' "${mul_source}")" -eq 2
+
 GOOS=linux GOARCH=amd64 GOAMD64="${GOAMD64:-v1}" \
   go test -c -tags=secp256k1_asm -o "${selector_binary}" .
 go tool objdump -s 'github.com/islishude/secp256k1\.selectGeneratorW6' \

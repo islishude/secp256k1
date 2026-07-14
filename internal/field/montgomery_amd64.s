@@ -5,28 +5,22 @@
 #include "textflag.h"
 
 // func mulMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
-// Requires: ADX, BMI2, CMOV
-TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $32-24
+// Requires: ADX, BMI2, CMOV, SSE2
+TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24
 	MOVQ    x+8(FP), SI
 	MOVQ    (SI), R8
 	MOVQ    8(SI), R9
 	MOVQ    16(SI), R10
 	MOVQ    24(SI), R11
 	MOVQ    y+16(FP), AX
-	MOVQ    (AX), DX
-	MOVQ    DX, (SP)
-	MOVQ    8(AX), DX
-	MOVQ    DX, 8(SP)
-	MOVQ    16(AX), DX
-	MOVQ    DX, 16(SP)
-	MOVQ    24(AX), DX
-	MOVQ    DX, 24(SP)
+	MOVOU   (AX), X0
+	MOVOU   16(AX), X1
 	XORQ    R12, R12
 	MOVQ    R12, R13
 	MOVQ    R12, R14
 	MOVQ    R12, R15
 	MOVQ    R12, BX
-	MOVQ    (SP), DX
+	MOVQ    X0, DX
 	XORQ    DI, DI
 	MULXQ   R8, AX, CX
 	ADCXQ   DI, AX
@@ -66,7 +60,8 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $32-24
 	MOVQ    R15, R14
 	MOVQ    BX, R15
 	MOVQ    DI, BX
-	MOVQ    8(SP), DX
+	PSRLDQ  $0x08, X0
+	MOVQ    X0, DX
 	XORQ    DI, DI
 	MULXQ   R8, AX, CX
 	ADCXQ   DI, AX
@@ -106,7 +101,7 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $32-24
 	MOVQ    R15, R14
 	MOVQ    BX, R15
 	MOVQ    DI, BX
-	MOVQ    16(SP), DX
+	MOVQ    X1, DX
 	XORQ    DI, DI
 	MULXQ   R8, AX, CX
 	ADCXQ   DI, AX
@@ -146,7 +141,8 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $32-24
 	MOVQ    R15, R14
 	MOVQ    BX, R15
 	MOVQ    DI, BX
-	MOVQ    24(SP), DX
+	PSRLDQ  $0x08, X1
+	MOVQ    X1, DX
 	XORQ    DI, DI
 	MULXQ   R8, AX, CX
 	ADCXQ   DI, AX
