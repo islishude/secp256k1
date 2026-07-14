@@ -27,53 +27,14 @@ func emitMul() {
 	Pragma("noescape")
 	Doc("mulMontgomeryADXAsm multiplies two canonical Montgomery field elements.")
 
-	t := AllocLocal(9 * 8)
 	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	y := [4]reg.GPPhysical{reg.RDX, reg.R12, reg.R13, reg.R14}
-
-	Load(Param("x"), reg.RSI)
-	for i := range x {
-		MOVQ(Mem{Base: reg.RSI}.Offset(i*8), x[i])
-	}
-	Load(Param("y"), reg.RSI)
-	for i := range y {
-		MOVQ(Mem{Base: reg.RSI}.Offset(i*8), y[i])
-	}
-
-	XORQ(reg.R15, reg.R15)
-	for i := 0; i < 9; i++ {
-		MOVQ(reg.R15, t.Offset(i*8))
-	}
-
-	for row := 0; row < 4; row++ {
-		if row != 0 {
-			MOVQ(y[row], reg.RDX)
-		}
-		emitProductRow(t, row, x)
-	}
-
-	emitReduction(t, [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11})
-	emitStoreResult("out", [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11})
+	emitLoadElement("x", x)
+	result := emitMontgomeryProduct(x, func(i int) {
+		Load(Param("y"), reg.RAX)
+		MOVQ(Mem{Base: reg.RAX}.Offset(i*8), reg.RDX)
+	})
+	emitStoreResult("out", result)
 	RET()
-}
-
-func emitProductRow(t Mem, row int, x [4]reg.GPPhysical) {
-	// ADCX carries the multiplication chain while ADOX carries the accumulated
-	// product already present in the destination limbs.
-	XORQ(reg.R15, reg.R15)
-	previousHigh := reg.GPPhysical(reg.R15)
-	high := [2]reg.GPPhysical{reg.RBX, reg.RCX}
-	for i := 0; i < 4; i++ {
-		nextHigh := high[i&1]
-		MULXQ(x[i], reg.RAX, nextHigh)
-		ADCXQ(previousHigh, reg.RAX)
-		ADOXQ(t.Offset((row+i)*8), reg.RAX)
-		MOVQ(reg.RAX, t.Offset((row+i)*8))
-		previousHigh = nextHigh
-	}
-	ADCXQ(reg.R15, previousHigh)
-	ADOXQ(reg.R15, previousHigh)
-	MOVQ(previousHigh, t.Offset((row+4)*8))
 }
 
 func emitSquare() {
@@ -81,12 +42,12 @@ func emitSquare() {
 	Pragma("noescape")
 	Doc("squareMontgomeryADXAsm squares a canonical Montgomery field element.")
 
-	t := AllocLocal(9 * 8)
 	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
 	emitLoadElement("x", x)
-	emitSquareProduct(t, x)
-	emitReduction(t, x)
-	emitStoreResult("out", x)
+	result := emitMontgomeryProduct(x, func(i int) {
+		MOVQ(x[i], reg.RDX)
+	})
+	emitStoreResult("out", result)
 	RET()
 }
 
@@ -95,17 +56,19 @@ func emitSquareN() {
 	Pragma("noescape")
 	Doc("squareMontgomeryNADXAsm performs a public number of repeated squarings.")
 
-	t := AllocLocal(9 * 8)
+	counter := AllocLocal(8)
 	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
 	emitLoadElement("x", x)
-	Load(Param("n"), reg.R14)
-	TESTQ(reg.R14, reg.R14)
+	Load(Param("n"), reg.RAX)
+	MOVQ(reg.RAX, counter)
+	TESTQ(reg.RAX, reg.RAX)
 	JE(LabelRef("square_n_store"))
 
 	Label("square_n_loop")
-	emitSquareProduct(t, x)
-	emitReduction(t, x)
-	DECQ(reg.R14)
+	x = emitMontgomeryProduct(x, func(i int) {
+		MOVQ(x[i], reg.RDX)
+	})
+	DECQ(counter)
 	JNE(LabelRef("square_n_loop"))
 
 	Label("square_n_store")
@@ -113,82 +76,83 @@ func emitSquareN() {
 	RET()
 }
 
-func emitSquareProduct(t Mem, x [4]reg.GPPhysical) {
-	zero := reg.R12
-	acc := [3]reg.GPPhysical{reg.RAX, reg.RBX, reg.RCX}
-	lo, hi, top := reg.RSI, reg.RDI, reg.R13
-
-	XORQ(zero, zero)
-	for _, r := range acc {
-		MOVQ(zero, r)
+func emitMontgomeryProduct(x [4]reg.GPPhysical, loadMultiplier func(int)) [4]reg.GPPhysical {
+	// t is a five-limb accumulator. The top limb is required because the
+	// secp256k1 modulus is only 33 bits below 2^256, so intermediate CIOS
+	// results can cross the 256-bit boundary.
+	t := [5]reg.GPPhysical{reg.R12, reg.R13, reg.R14, reg.R15, reg.RBX}
+	XORQ(t[0], t[0])
+	for i := 1; i < len(t); i++ {
+		MOVQ(t[0], t[i])
 	}
 
-	for column := 0; column <= 6; column++ {
-		for i := 0; i < 4; i++ {
-			j := column - i
-			if j < i || j < 0 || j >= 4 {
-				continue
-			}
-			MOVQ(x[i], reg.RDX)
-			MULXQ(x[j], lo, hi)
-			MOVQ(zero, top)
-			if i != j {
-				ADDQ(lo, lo)
-				ADCQ(hi, hi)
-				ADCQ(zero, top)
-			}
-			CLC()
-			ADCXQ(lo, acc[0])
-			ADCXQ(hi, acc[1])
-			ADCXQ(top, acc[2])
-		}
-		MOVQ(acc[0], t.Offset(column*8))
-		MOVQ(acc[1], acc[0])
-		MOVQ(acc[2], acc[1])
-		MOVQ(zero, acc[2])
+	for row := 0; row < 4; row++ {
+		loadMultiplier(row)
+		emitMulAddRow(x, t)
+		emitMontgomeryShift(t)
 	}
-	MOVQ(acc[0], t.Offset(7*8))
-	MOVQ(zero, t.Offset(8*8))
+
+	result := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
+	for i := range result {
+		MOVQ(t[i], result[i])
+	}
+	MOVQ(U64(fieldP0), reg.RAX)
+	SUBQ(reg.RAX, result[0])
+	SBBQ(I8(-1), result[1])
+	SBBQ(I8(-1), result[2])
+	SBBQ(I8(-1), result[3])
+	MOVQ(t[4], reg.RDI)
+	SBBQ(U8(0), reg.RDI)
+	for i := range result {
+		CMOVQCS(t[i], result[i])
+	}
+	return result
 }
 
-func emitReduction(t Mem, result [4]reg.GPPhysical) {
-	// For p = 2^256-c and k0 = c^-1 mod 2^64, each Montgomery
-	// cancellation adds q at limb i+4 and subtracts high(q*c) at i+1.
+func emitMulAddRow(x [4]reg.GPPhysical, t [5]reg.GPPhysical) {
+	// ADCX carries the multiplication chain while ADOX carries the existing
+	// accumulator. RDI is zero until it captures the top carry.
+	XORQ(reg.RDI, reg.RDI)
+	previousHigh := reg.GPPhysical(reg.RDI)
+	high := [2]reg.GPPhysical{reg.RCX, reg.RSI}
 	for i := 0; i < 4; i++ {
-		MOVQ(t.Offset(i*8), reg.RDX)
-		MOVQ(U64(fieldK0), reg.RAX)
-		IMULQ(reg.RAX, reg.RDX)
-		MOVQ(U64(fieldC), reg.RAX)
-		MULXQ(reg.RAX, reg.RBX, reg.RCX)
+		nextHigh := high[i&1]
+		MULXQ(x[i], reg.RAX, nextHigh)
+		ADCXQ(previousHigh, reg.RAX)
+		ADOXQ(t[i], reg.RAX)
+		MOVQ(reg.RAX, t[i])
+		previousHigh = nextHigh
+	}
+	ADCXQ(reg.RDI, previousHigh)
+	ADOXQ(reg.RDI, previousHigh)
+	ADDQ(t[4], previousHigh)
+	ADCQ(U8(0), reg.RDI)
+	MOVQ(previousHigh, t[4])
+}
 
-		ADDQ(reg.RDX, t.Offset((i+4)*8))
-		for j := i + 5; j <= 8; j++ {
-			ADCQ(U8(0), t.Offset(j*8))
-		}
-		SUBQ(reg.RCX, t.Offset((i+1)*8))
-		for j := i + 2; j <= 8; j++ {
-			SBBQ(U8(0), t.Offset(j*8))
-		}
-	}
+func emitMontgomeryShift(t [5]reg.GPPhysical) {
+	// q = t0*c^-1 mod 2^64. Since p = 2^256-c, q*p adds q at
+	// limb four and subtracts q*c from the low limbs. The low product is
+	// exactly t0 and is discarded by the Montgomery word shift.
+	MOVQ(t[0], reg.RDX)
+	MOVQ(U64(fieldK0), reg.RAX)
+	IMULQ(reg.RAX, reg.RDX)
+	MOVQ(U64(fieldC), reg.RAX)
+	MULXQ(reg.RAX, t[0], reg.RCX)
 
-	for i := range result {
-		MOVQ(t.Offset((i+4)*8), result[i])
-	}
-	diff := [4]reg.GPPhysical{reg.RAX, reg.RBX, reg.RCX, reg.RDI}
-	for i := range diff {
-		MOVQ(result[i], diff[i])
-	}
-	MOVQ(U64(fieldP0), reg.R12)
-	SUBQ(reg.R12, diff[0])
-	SBBQ(I8(-1), diff[1])
-	SBBQ(I8(-1), diff[2])
-	SBBQ(I8(-1), diff[3])
-	MOVQ(t.Offset(8*8), reg.RSI)
-	SBBQ(U8(0), reg.RSI)
-	for i := range diff {
-		CMOVQCS(result[i], diff[i])
-		MOVQ(diff[i], result[i])
-	}
+	ADDQ(reg.RDX, t[4])
+	ADCQ(U8(0), reg.RDI)
+	SUBQ(reg.RCX, t[1])
+	SBBQ(U8(0), t[2])
+	SBBQ(U8(0), t[3])
+	SBBQ(U8(0), t[4])
+	SBBQ(U8(0), reg.RDI)
+
+	MOVQ(t[1], t[0])
+	MOVQ(t[2], t[1])
+	MOVQ(t[3], t[2])
+	MOVQ(t[4], t[3])
+	MOVQ(reg.RDI, t[4])
 }
 
 func emitMulByB3() {

@@ -92,6 +92,7 @@ jobs:
 
   performance:
     strategy:
+      fail-fast: false
       matrix:
         goamd64:
           - v1
@@ -164,6 +165,7 @@ jobs:
           output="${RUNNER_TEMP}/amd64-bench"
           go run ./cmd/benchcmp -gate=field "${output}/field-default.txt" "${output}/field-tagged.txt"
       - name: Check final end-to-end thresholds
+        if: always()
         run: |
           output="${RUNNER_TEMP}/amd64-bench"
           go run ./cmd/benchcmp -gate=final "${output}/root-default.txt" "${output}/root-tagged.txt"
