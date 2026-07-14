@@ -201,7 +201,7 @@ jobs:
           run_kernel() {
             local kernel="$1"
             SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
+              go test -tags='secp256k1_asm,secp256k1_amd64_bench,secp256k1_amd64_w5_bench' -run '^$' \
                 -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
                 -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${kernel}.txt"
           }

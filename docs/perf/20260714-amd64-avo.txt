@@ -1,0 +1,121 @@
+# AMD64 avo compact benchmark and audit transcript
+# Date: 2026-07-14
+# Branch: codex/amd64-avo-asm
+# Go: go1.26.5
+# Final implementation run: https://github.com/islishude/secp256k1/actions/runs/29343258999
+# Runner CPU for both performance jobs: AMD EPYC 7763 64-Core Processor
+# CPUID helper: ADX+BMI2=true
+# Method: default/tagged alternated for 10 samples on the same runner; values are medians
+# Delta convention: negative is faster, positive is slower
+
+[final-gate GOAMD64=v1]
+Benchmark                              default-ns  tagged-ns  delta       allocs
+SignRecoverable                         46565.0     35093.0   -24.64%     0 B/op 0 allocs/op
+VerifyHotPublicKey                      38066.5     30489.0   -19.91%     0 B/op 0 allocs/op
+
+[final-gate GOAMD64=v3]
+Benchmark                              default-ns  tagged-ns  delta       allocs
+SignRecoverable                         46276.0     34320.5   -25.84%     0 B/op 0 allocs/op
+VerifyHotPublicKey                      37963.0     30251.5   -20.31%     0 B/op 0 allocs/op
+
+[root-workloads GOAMD64=v1]
+Benchmark                              delta
+PublicKeyDerive                         -25.29%
+RecoverDigest                           -19.07%
+ScalarBaseMultProjective                -39.44%
+ScalarInv                                +0.09%
+ScalarInvVartime                         +0.05%
+SignCompact                             -24.31%
+SignDigest                              -24.60%
+SignRecoverable                         -24.64%
+SignRecoverableDigest                   -24.38%
+VerifyDigest                            -19.96%
+VerifyHotPublicKey                      -19.91%
+VerifyParseCompressedCold               -18.57%
+VerifyParseUncompressedCold             -19.46%
+
+[root-workloads GOAMD64=v3]
+Benchmark                              delta
+PublicKeyDerive                         -25.84%
+RecoverDigest                           -19.35%
+ScalarBaseMultProjective                -41.74%
+ScalarInv                                +0.09%
+ScalarInvVartime                         -0.08%
+SignCompact                             -25.85%
+SignDigest                              -25.74%
+SignRecoverable                         -25.84%
+SignRecoverableDigest                   -25.80%
+VerifyDigest                            -20.00%
+VerifyHotPublicKey                      -20.31%
+VerifyParseCompressedCold               -18.85%
+VerifyParseUncompressedCold             -20.25%
+
+[retained-field GOAMD64=v1]
+BenchmarkFieldMul                       -27.13%
+BenchmarkFieldSquare                    -29.57%
+BenchmarkFieldMulByB3 fiat fallback      -0.02%
+BenchmarkFieldSquareN fiat fallback      +8.24%
+
+[retained-field GOAMD64=v3]
+BenchmarkFieldMul                       -29.57%
+BenchmarkFieldSquare                    -25.21%
+BenchmarkFieldMulByB3 fiat fallback      +0.17%
+BenchmarkFieldSquareN fiat fallback      +6.04%
+
+# SquareN has identical default/tagged fiat code. Its samples alternated between
+# runner timing bands; no retained optimization or end-to-end regression is claimed.
+
+[isolated-field-contribution run=29342115384]
+GOAMD64  kernel  SignRecoverable  VerifyHotPublicKey  gate
+v1       Mul            -8.38%             -13.37%    pass
+v1       Square         +0.88%              -5.43%    pass
+v3       Mul            -8.72%             -11.80%    pass
+v3       Square         -0.83%              -4.45%    pass
+
+[W6-incremental]
+GOAMD64  benchmark                     W5-ns    W6-ns    delta    gate
+v1       ScalarBaseMultProjective     24655.5  17117.0  -30.58%  pass
+v1       SignRecoverable              42487.5  35093.0  -17.40%  pass
+v1       VerifyHotPublicKey           30351.5  30489.0   +0.45%  pass
+v3       ScalarBaseMultProjective     24434.5  16485.0  -32.53%  pass
+v3       SignRecoverable              42480.0  34320.5  -19.21%  pass
+v3       VerifyHotPublicKey           30158.5  30251.5   +0.31%  pass
+
+[table-size]
+W5                                           53248 bytes
+W6                                           88064 bytes
+net-growth                                   34816 bytes (limit 40960)
+
+[native-disassembly]
+symbol                              bytes  MULX  ADCX  ADOX  CMOV  MOVDQU  CMP  SETE  branches
+mulMontgomeryADXAsm.abi0              899     20    20    20     4       0    0     0         0
+squareMontgomeryADXAsm.abi0           840     20    20    20     4       0    0     0         0
+selectGeneratorW6.abi0               3193      0     0     0     0     132   31    31         0
+
+[rejected-candidates]
+candidate                 GOAMD64  micro       sign        verify      decision
+stack-backed field Mul    v1        -1.84%      -7.80%      -2.68%      delete
+stack-backed field Mul    v3        -2.88%      -5.65%      -2.22%      delete
+SquareN assembly          v1       -33.90%       n/a        +1.25%      delete
+SquareN assembly          v3       -33.39%       n/a        +1.07%      delete
+multiply-by-21 assembly   v1       -73.33%       n/a        +1.09%      delete
+multiply-by-21 assembly   v3       -72.03%       n/a          n/a       delete
+# Rejection evidence: https://github.com/islishude/secp256k1/actions/runs/29340639169
+
+[stage-decisions]
+Add/Sub: skipped; retained Mul/Square already made hot verification >10% faster.
+W6: retained; entered because field-only signing remained below 10%.
+Scalar assembly: skipped; W6 made final signing >10% faster.
+Fused point arithmetic/W7/API/signature/RFC6979 changes: not implemented.
+
+[validation]
+PASS default and tagged full/race tests
+PASS default sign/verify/recovery fuzz and tagged field fuzz
+PASS 100000 deterministic field oracle pairs plus edge and alias cases
+PASS W6 all windows/magnitudes, carry, boundary, and 1000 random scalar oracles
+PASS constant-time smoke, lint, vet, dependency and vartime audits
+PASS asm module tidy/test/vet and generation consistency
+PASS benchmark submodule
+PASS Linux and Windows AMD64 v1/v3; Darwin AMD64 v1/v3 cross-build
+PASS native disassembly and rejected-symbol absence
+PASS root module has zero third-party dependencies

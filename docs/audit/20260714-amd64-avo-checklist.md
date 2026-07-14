@@ -1,7 +1,9 @@
-# AMD64 avo base-field external audit checklist
+# AMD64 avo assembly external audit checklist
 
-Date: 2026-07-14  
-Scope: `amd64 && secp256k1_asm` CPUID dispatch and retained base-field Mul/Square kernels  
+Date: 2026-07-14
+
+Scope: `amd64 && secp256k1_asm` CPUID dispatch, retained base-field Mul/Square kernels, and signed-W6 fixed-base selector
+
 Status: implementation evidence complete; independent reviewer sign-off pending
 
 ## Generation and dependency isolation
@@ -48,15 +50,39 @@ Status: implementation evidence complete; independent reviewer sign-off pending
 - [ ] Review both Go and native GNU disassembly artifacts for instruction
   decoding, symbols, ABI, branches, memory operands, and function sizes.
 
+## Signed-W6 fixed-base path
+
+- [ ] Confirm the generated 43 x 32 x 64-byte W6 table is shared by the ARM64
+  and AMD64 tagged implementations, while default and AMD64 W5-benchmark
+  builds retain the 52 x 16 x 64-byte W5 table.
+- [ ] Confirm a production binary links exactly one fixed-base table. Check the
+  W6-over-W5 data increase is 34,816 bytes, below the 40 KiB limit.
+- [ ] Independently regenerate every W6 affine point and compare all 1,376
+  packed entries with the committed table in Montgomery representation.
+- [ ] Confirm the AMD64 selector uses only baseline AMD64/SSE2 instructions,
+  reads all 32 entries in the selected public window, and executes the same
+  instruction sequence for every secret magnitude.
+- [ ] Confirm magnitude zero is handled only by the later constant-time point
+  selection; the selector deliberately returns entry one for magnitudes zero
+  and one and never indexes memory with the magnitude.
+- [ ] Confirm native disassembly has 132 `MOVDQU`, 31 `CMP`, 31 `SETE`, no
+  branch, and no secret-dependent address in `selectGeneratorW6`.
+- [ ] Confirm signed recoding always executes 43 windows, handles the highest
+  carry, applies sign with constant-time field selection, and erases the local
+  scalar words on return.
+
 ## Correctness and integration
 
 - [ ] Re-run fiat differential tests over zero, one, `p-1`, limb carry/borrow
   boundaries, all alias arrangements, and 100,000 deterministic random pairs.
 - [ ] Re-run SquareN zero and generated-chain counts, base-field fuzzing, CPUID
   mask tests, forced-fallback tests, signature goldens, and public-key oracles.
+- [ ] Re-run W5/W6 dynamic-table differential tests, every selector window and
+  magnitude 0 through 32, highest-window carry, boundary scalars, and at least
+  1,000 deterministic random scalar comparisons against W4/W5/W6 oracles.
 - [ ] Confirm default builds still use fiat, ARM64 tagged routing is unchanged,
   and no public API, type, RFC6979 behavior, or signature encoding changed.
-- [ ] Confirm Add/Sub, W6, scalar assembly, fused point arithmetic, W7, and new
+- [ ] Confirm Add/Sub, scalar assembly, fused point arithmetic, W7, and new
   variable-time secret paths are absent from the AMD64 change set.
 
 ## Performance and platform evidence
@@ -66,6 +92,9 @@ Status: implementation evidence complete; independent reviewer sign-off pending
   contribution, final signing/verification, allocations, and other workloads.
 - [ ] Confirm the rejected stack-backed, SquareN, and multiply-by-21 candidates
   are absent and retained Mul/Square satisfy all recorded thresholds.
+- [ ] Confirm W6 entered only after field-only signing missed 10%, improves
+  fixed-base multiplication by at least 5% and signing by at least 3%, and
+  does not regress verification by more than 1% at either GOAMD64 level.
 - [ ] Re-run default/tagged race tests, lint/vet, fuzz, constant-time smoke,
   dependency/vartime audits, benchmark-module tests, native Linux/Windows AMD64,
   and Darwin AMD64 cross-builds.
