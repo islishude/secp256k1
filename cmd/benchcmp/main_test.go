@@ -60,6 +60,28 @@ func TestFinalGate(t *testing.T) {
 	}
 }
 
+func TestKernelGate(t *testing.T) {
+	baseline := map[string]*samples{
+		"BenchmarkSignRecoverable":    {nsPerOp: []float64{100}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkVerifyHotPublicKey": {nsPerOp: []float64{100}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+	}
+	candidate := map[string]*samples{
+		"BenchmarkSignRecoverable":    {nsPerOp: []float64{98}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkVerifyHotPublicKey": {nsPerOp: []float64{100.5}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+	}
+	if err := checkGate("kernel", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	candidate["BenchmarkSignRecoverable"].nsPerOp[0] = 99.5
+	if err := checkGate("kernel", baseline, candidate); err == nil {
+		t.Fatal("expected insufficient contribution failure")
+	}
+	candidate["BenchmarkVerifyHotPublicKey"].nsPerOp[0] = 101.5
+	if err := checkGate("kernel", baseline, candidate); err == nil {
+		t.Fatal("expected regression failure")
+	}
+}
+
 func TestCanonicalBenchmarkName(t *testing.T) {
 	if got := canonicalBenchmarkName("BenchmarkFoo/bar-16"); got != "BenchmarkFoo/bar" {
 		t.Fatalf("canonical name = %q", got)

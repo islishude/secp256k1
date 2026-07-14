@@ -21,10 +21,10 @@ type samples struct {
 }
 
 func main() {
-	gate := flag.String("gate", "", "optional acceptance gate: field or final")
+	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, or final")
 	flag.Parse()
 	if flag.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|final] <baseline.txt> <candidate.txt>")
+		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|final] <baseline.txt> <candidate.txt>")
 		os.Exit(2)
 	}
 	baseline, err := readBenchmarks(flag.Arg(0))
@@ -129,6 +129,8 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 			"BenchmarkFieldSquare":  15,
 			"BenchmarkFieldSquareN": 15,
 		}
+	case "kernel":
+		return checkKernelGate(baseline, candidate)
 	case "final":
 		improvements = map[string]float64{
 			"BenchmarkSignRecoverable":    10,
@@ -171,6 +173,29 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 		if regression > 1+1e-9 {
 			return fmt.Errorf("%s regressed %.2f%%, maximum is 1.00%%", name, regression)
 		}
+	}
+	return nil
+}
+
+func checkKernelGate(baseline, candidate map[string]*samples) error {
+	bestImprovement := -100.0
+	for _, name := range []string{"BenchmarkSignRecoverable", "BenchmarkVerifyHotPublicKey"} {
+		old, next, err := commonMedians(name, baseline, candidate)
+		if err != nil {
+			return err
+		}
+		improvement := (1 - next/old) * 100
+		bestImprovement = max(bestImprovement, improvement)
+		if improvement < -1-1e-9 {
+			return fmt.Errorf("%s regressed %.2f%%, maximum is 1.00%%", name, -improvement)
+		}
+		if median(baseline[name].bytesPerOp) != 0 || median(candidate[name].bytesPerOp) != 0 ||
+			median(baseline[name].allocsPerOp) != 0 || median(candidate[name].allocsPerOp) != 0 {
+			return fmt.Errorf("%s must remain 0 B/op and 0 allocs/op", name)
+		}
+	}
+	if bestImprovement+1e-9 < 1 {
+		return fmt.Errorf("best signing or verification improvement is %.2f%%, requires at least 1.00%%", bestImprovement)
 	}
 	return nil
 }

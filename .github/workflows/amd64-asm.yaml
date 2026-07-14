@@ -123,6 +123,9 @@ jobs:
             : >"${output}/${package}-default.txt"
             : >"${output}/${package}-tagged.txt"
           done
+          for kernel in mul square squaren mulbyb3; do
+            : >"${output}/root-${kernel}.txt"
+          done
 
           run_mode() {
             local mode="$1"
@@ -141,6 +144,14 @@ jobs:
               -benchmem -benchtime=500ms -count=1 ./internal/scalar >>"${output}/scalar-${mode}.txt"
           }
 
+          run_kernel() {
+            local kernel="$1"
+            SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
+              go test -tags=secp256k1_asm -run '^$' \
+                -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
+                -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${kernel}.txt"
+          }
+
           for iteration in $(seq 1 10); do
             if (( iteration % 2 == 1 )); then
               run_mode default
@@ -149,6 +160,11 @@ jobs:
               run_mode tagged
               run_mode default
             fi
+            kernels=(mul square squaren mulbyb3)
+            for offset in 0 1 2 3; do
+              index=$(( (iteration + offset - 1) % 4 ))
+              run_kernel "${kernels[index]}"
+            done
           done
       - name: Build median reports
         run: |
@@ -160,6 +176,17 @@ jobs:
             2>&1 | tee "${output}/field-summary.txt"
           go run ./cmd/benchcmp "${output}/scalar-default.txt" "${output}/scalar-tagged.txt" \
             2>&1 | tee "${output}/scalar-summary.txt"
+          for kernel in mul square squaren mulbyb3; do
+            go run ./cmd/benchcmp "${output}/root-default.txt" "${output}/root-${kernel}.txt" \
+              2>&1 | tee "${output}/root-${kernel}-summary.txt"
+          done
+      - name: Check per-kernel contribution thresholds
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/amd64-bench"
+          for kernel in mul square squaren mulbyb3; do
+            go run ./cmd/benchcmp -gate=kernel "${output}/root-default.txt" "${output}/root-${kernel}.txt"
+          done
       - name: Check base-field thresholds
         run: |
           output="${RUNNER_TEMP}/amd64-bench"

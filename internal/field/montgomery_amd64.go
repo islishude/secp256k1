@@ -7,10 +7,19 @@ import (
 	fiat "github.com/islishude/secp256k1/internal/fiat/basefield"
 )
 
-// useADXAndBMI2 is fixed from public CPU state during package initialization.
-// It remains a variable so the fallback route can be exercised in package
-// tests without pretending GOAMD64 implies ADX support.
-var useADXAndBMI2 = cpufeat.HasADXAndBMI2
+type amd64KernelSet struct {
+	mul, mulByB3, square, squareN bool
+}
+
+// amd64Kernels is fixed from public CPU state during package initialization.
+// It remains a variable so package tests can exercise fallback and benchmark
+// each retained kernel independently without changing production routing.
+var amd64Kernels = amd64KernelSet{
+	mul:     cpufeat.HasADXAndBMI2,
+	mulByB3: cpufeat.HasADXAndBMI2,
+	square:  cpufeat.HasADXAndBMI2,
+	squareN: cpufeat.HasADXAndBMI2,
+}
 
 func addMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 	fiat.Add(out, x, y)
@@ -21,7 +30,7 @@ func subMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 }
 
 func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
-	if useADXAndBMI2 {
+	if amd64Kernels.mul {
 		mulMontgomeryADXAsm(fieldWords(out), fieldWords(x), fieldWords(y))
 		return
 	}
@@ -29,7 +38,7 @@ func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 }
 
 func mulByB3Montgomery(out, x *fiat.MontgomeryDomainFieldElement) {
-	if useADXAndBMI2 {
+	if amd64Kernels.mulByB3 {
 		mulByB3MontgomeryADXAsm(fieldWords(out), fieldWords(x))
 		return
 	}
@@ -37,7 +46,7 @@ func mulByB3Montgomery(out, x *fiat.MontgomeryDomainFieldElement) {
 }
 
 func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement) {
-	if useADXAndBMI2 {
+	if amd64Kernels.square {
 		squareMontgomeryADXAsm(fieldWords(out), fieldWords(x))
 		return
 	}
@@ -45,7 +54,7 @@ func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement) {
 }
 
 func squareMontgomeryN(out, x *fiat.MontgomeryDomainFieldElement, n uint64) {
-	if useADXAndBMI2 {
+	if amd64Kernels.squareN {
 		squareMontgomeryNADXAsm(fieldWords(out), fieldWords(x), n)
 		return
 	}

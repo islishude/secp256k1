@@ -3,22 +3,52 @@
 package field
 
 import (
+	"os"
 	"testing"
 
 	"github.com/islishude/secp256k1/internal/cpufeat"
 )
 
+func init() {
+	selection := os.Getenv("SECP256K1_AMD64_BENCH_KERNEL")
+	if selection == "" || selection == "all" {
+		return
+	}
+	amd64Kernels = amd64KernelSet{}
+	if !cpufeat.HasADXAndBMI2 {
+		return
+	}
+	switch selection {
+	case "mul":
+		amd64Kernels.mul = true
+	case "mulbyb3":
+		amd64Kernels.mulByB3 = true
+	case "square":
+		amd64Kernels.square = true
+	case "squaren":
+		amd64Kernels.squareN = true
+	default:
+		panic("unknown SECP256K1_AMD64_BENCH_KERNEL value: " + selection)
+	}
+}
+
 func TestAMD64FeatureDispatch(t *testing.T) {
-	if useADXAndBMI2 != cpufeat.HasADXAndBMI2 {
-		t.Fatalf("dispatch=%t, CPUID ADX+BMI2=%t", useADXAndBMI2, cpufeat.HasADXAndBMI2)
+	want := amd64KernelSet{
+		mul:     cpufeat.HasADXAndBMI2,
+		mulByB3: cpufeat.HasADXAndBMI2,
+		square:  cpufeat.HasADXAndBMI2,
+		squareN: cpufeat.HasADXAndBMI2,
+	}
+	if amd64Kernels != want {
+		t.Fatalf("dispatch=%+v, want %+v", amd64Kernels, want)
 	}
 	t.Logf("CPUID ADX+BMI2=%t", cpufeat.HasADXAndBMI2)
 }
 
 func TestAMD64FiatFallback(t *testing.T) {
-	original := useADXAndBMI2
-	useADXAndBMI2 = false
-	t.Cleanup(func() { useADXAndBMI2 = original })
+	original := amd64Kernels
+	amd64Kernels = amd64KernelSet{}
+	t.Cleanup(func() { amd64Kernels = original })
 
 	checkMontgomeryBackend(t,
 		[4]uint64{0xfffffffefffffc2e, ^uint64(0), ^uint64(0), ^uint64(0)},
