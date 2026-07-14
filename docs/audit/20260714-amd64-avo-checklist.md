@@ -41,10 +41,14 @@ Status: implementation evidence complete; independent reviewer sign-off pending
 
 - [ ] Confirm all generated declarations are `//go:noescape`, use Go's expected
   AMD64 ABI wrapper, preserve required registers, and contain no calls.
-- [ ] Confirm each input is consumed before any output store, preserving
-  `out == x`, `out == y`, `x == y`, and repeated-square in-place operation.
+- [ ] Confirm both inputs are fully staged before arithmetic: Mul keeps the
+  first input in four general registers and the second in two SSE2 registers,
+  with no stack frame. Confirm this preserves `out == x`, `out == y`, `x == y`,
+  and repeated-square in-place operation.
 - [ ] Confirm Mul and Square each contain 20 `MULXQ`, 20 `ADCXQ`, and 20
   `ADOXQ`, with no branches.
+- [ ] Confirm Mul additionally contains exactly two `MOVDQU` input loads and
+  two `PSRLDQ` extractions, and that SSE2 is available on every AMD64 target.
 - [ ] Confirm operand limbs never influence an address, loop count, branch, or
   instruction count.
 - [ ] Review both Go and native GNU disassembly artifacts for instruction
