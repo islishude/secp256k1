@@ -1,4 +1,4 @@
-.PHONY: test test-arm64-asm lint benchmark perf-check perf-check-arm64 check-main-deps vartime-audit generate-check fuzz-smoke ct-smoke format
+.PHONY: test test-arm64-asm lint benchmark perf-check perf-check-arm64 check-main-deps vartime-audit generate-asm check-asm-module generate-check amd64-asm-audit fuzz-smoke ct-smoke format
 test:
 	go test -v -count=1 -cover -race ./...
 	cd benchmark && go test .
@@ -29,9 +29,21 @@ vartime-audit:
 		printf '%s\n' 'Vartime function used in a secret path' >&2; exit 1; \
 	fi
 
+generate-asm:
+	cd asm && go generate ./...
+
+check-asm-module:
+	cd asm && go mod tidy -diff
+	cd asm && go test ./...
+	cd asm && go vet ./...
+
 generate-check:
 	go generate ./...
+	$(MAKE) generate-asm
 	git diff --exit-code
+
+amd64-asm-audit:
+	./scripts/check-amd64-asm.sh
 
 fuzz-smoke:
 	go test -run=^$$ -fuzz=FuzzParseDERSignature -fuzztime=10s .

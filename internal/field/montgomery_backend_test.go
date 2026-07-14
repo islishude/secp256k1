@@ -35,11 +35,17 @@ func checkMontgomeryBackend(t *testing.T, xWords, yWords [4]uint64) {
 	x.SetNonMontgomeryWords(xWords)
 	y.SetNonMontgomeryWords(yWords)
 
-	var wantAdd, wantSub, wantMul, wantSquare fiat.MontgomeryDomainFieldElement
+	var wantAdd, wantSub, wantMul, wantMulByB3, wantSquare fiat.MontgomeryDomainFieldElement
 	fiat.Add(&wantAdd, &x.x, &y.x)
 	fiat.Sub(&wantSub, &x.x, &y.x)
 	fiat.Mul(&wantMul, &x.x, &y.x)
+	fiat.Mul(&wantMulByB3, &x.x, &b3Montgomery)
 	fiat.Square(&wantSquare, &x.x)
+	squareCount := uint64(1 + xWords[0]&3)
+	wantSquareN := x.x
+	for range squareCount {
+		fiat.Square(&wantSquareN, &wantSquareN)
+	}
 
 	var got fiat.MontgomeryDomainFieldElement
 	addMontgomery(&got, &x.x, &y.x)
@@ -57,9 +63,19 @@ func checkMontgomeryBackend(t *testing.T, xWords, yWords [4]uint64) {
 		t.Fatalf("mul mismatch for x=%x y=%x: got %x want %x", xWords, yWords, got, wantMul)
 	}
 	assertCanonicalMontgomery(t, &got)
+	mulByB3Montgomery(&got, &x.x)
+	if got != wantMulByB3 {
+		t.Fatalf("mul by 21 mismatch for x=%x: got %x want %x", xWords, got, wantMulByB3)
+	}
+	assertCanonicalMontgomery(t, &got)
 	squareMontgomery(&got, &x.x)
 	if got != wantSquare {
 		t.Fatalf("square mismatch for x=%x: got %x want %x", xWords, got, wantSquare)
+	}
+	assertCanonicalMontgomery(t, &got)
+	squareMontgomeryN(&got, &x.x, squareCount)
+	if got != wantSquareN {
+		t.Fatalf("square n mismatch for x=%x n=%d: got %x want %x", xWords, squareCount, got, wantSquareN)
 	}
 	assertCanonicalMontgomery(t, &got)
 
@@ -102,6 +118,16 @@ func checkMontgomeryBackend(t *testing.T, xWords, yWords [4]uint64) {
 	mulMontgomery(&got, &got, &got)
 	if got != wantSquare {
 		t.Fatalf("mul double alias mismatch for x=%x", xWords)
+	}
+	got = x.x
+	mulByB3Montgomery(&got, &got)
+	if got != wantMulByB3 {
+		t.Fatalf("mul by 21 alias mismatch for x=%x", xWords)
+	}
+	got = x.x
+	squareMontgomeryN(&got, &got, squareCount)
+	if got != wantSquareN {
+		t.Fatalf("square n alias mismatch for x=%x n=%d", xWords, squareCount)
 	}
 }
 

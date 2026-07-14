@@ -1,0 +1,172 @@
+name: amd64-asm
+
+on:
+  pull_request:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  correctness:
+    strategy:
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: ubuntu-24.04
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+          cache-dependency-path: |
+            go.mod
+            asm/go.sum
+      - name: Verify generator module
+        run: make check-asm-module
+      - name: Verify generated files
+        run: make generate-check
+      - name: Test tagged AMD64 backend
+        run: go test -v -race -count=1 -tags=secp256k1_asm ./...
+      - name: Constant-time smoke
+        env:
+          SECP256K1_CT_TEST: "1"
+        run: go test -count=1 -tags=secp256k1_asm -run TestConstantTimeScalarBaseMultSmoke .
+      - name: Disassemble and audit kernels
+        run: ./scripts/check-amd64-asm.sh "${RUNNER_TEMP}/amd64-audit"
+      - name: Upload disassembly
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amd64-${{ matrix.goamd64 }}-disassembly
+          path: ${{ runner.temp }}/amd64-audit
+
+  native-windows:
+    strategy:
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: windows-2025-vs2026
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - run: go build -tags=secp256k1_asm ./...
+      - run: go vet -tags=secp256k1_asm ./...
+      - run: go test -race -count=1 -tags=secp256k1_asm ./...
+
+  cross-build-darwin:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - name: Cross-build Darwin AMD64 v1
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          GOAMD64: v1
+        run: go build -tags=secp256k1_asm ./...
+      - name: Cross-build Darwin AMD64 v3
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          GOAMD64: v3
+        run: go build -tags=secp256k1_asm ./...
+
+  performance:
+    strategy:
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: ubuntu-24.04
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+      - name: Record runner and feature state
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/amd64-bench"
+          lscpu >"${RUNNER_TEMP}/amd64-bench/lscpu.txt"
+          go env >"${RUNNER_TEMP}/amd64-bench/go-env.txt"
+          go test -v -count=1 -tags=secp256k1_asm -run TestAMD64FeatureDispatch ./internal/field \
+            | tee "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
+          grep -q 'CPUID ADX+BMI2=true' "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
+      - name: Interleave default and tagged benchmarks
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/amd64-bench"
+          for package in root field scalar; do
+            : >"${output}/${package}-default.txt"
+            : >"${output}/${package}-tagged.txt"
+          done
+
+          run_mode() {
+            local mode="$1"
+            local tags=()
+            if [[ "${mode}" == tagged ]]; then
+              tags=(-tags=secp256k1_asm)
+            fi
+            go test "${tags[@]}" -run '^$' \
+              -bench '^Benchmark(SignDigest|SignRecoverableDigest|VerifyDigest|RecoverDigest|VerifyHotPublicKey|VerifyParseCompressedCold|VerifyParseUncompressedCold|SignCompact|SignRecoverable|PublicKeyDerive|ScalarInv|ScalarInvVartime|ScalarBaseMultProjective)$' \
+              -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${mode}.txt"
+            go test "${tags[@]}" -run '^$' \
+              -bench '^BenchmarkField(Mul|MulByB3|Square|SquareN)$' \
+              -benchmem -benchtime=500ms -count=1 ./internal/field >>"${output}/field-${mode}.txt"
+            go test "${tags[@]}" -run '^$' \
+              -bench '^BenchmarkScalar(Mul|Square|SquareN|Inv)$' \
+              -benchmem -benchtime=500ms -count=1 ./internal/scalar >>"${output}/scalar-${mode}.txt"
+          }
+
+          for iteration in $(seq 1 10); do
+            if (( iteration % 2 == 1 )); then
+              run_mode default
+              run_mode tagged
+            else
+              run_mode tagged
+              run_mode default
+            fi
+          done
+      - name: Build median reports
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp "${output}/root-default.txt" "${output}/root-tagged.txt" \
+            2>&1 | tee "${output}/root-summary.txt"
+          go run ./cmd/benchcmp "${output}/field-default.txt" "${output}/field-tagged.txt" \
+            2>&1 | tee "${output}/field-summary.txt"
+          go run ./cmd/benchcmp "${output}/scalar-default.txt" "${output}/scalar-tagged.txt" \
+            2>&1 | tee "${output}/scalar-summary.txt"
+      - name: Check base-field thresholds
+        run: |
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp -gate=field "${output}/field-default.txt" "${output}/field-tagged.txt"
+      - name: Check final end-to-end thresholds
+        run: |
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp -gate=final "${output}/root-default.txt" "${output}/root-tagged.txt"
+      - name: Upload raw benchmark data
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amd64-${{ matrix.goamd64 }}-benchmarks
+          path: ${{ runner.temp }}/amd64-bench
