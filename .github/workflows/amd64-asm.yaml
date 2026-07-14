@@ -163,7 +163,7 @@ jobs:
           go test -v -count=1 -tags=secp256k1_asm -run TestAMD64FeatureDispatch ./internal/field \
             | tee "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
           grep -q 'CPUID ADX+BMI2=true' "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
-          for kernel in mul square squaren mulbyb3; do
+          for kernel in mul square; do
             SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
               go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
                 -run '^TestAMD64BenchmarkKernelSelection$' ./internal/field
@@ -176,7 +176,7 @@ jobs:
             : >"${output}/${package}-default.txt"
             : >"${output}/${package}-tagged.txt"
           done
-          for kernel in mul square squaren mulbyb3; do
+          for kernel in mul square; do
             : >"${output}/root-${kernel}.txt"
           done
 
@@ -213,9 +213,9 @@ jobs:
               run_mode tagged
               run_mode default
             fi
-            kernels=(mul square squaren mulbyb3)
-            for offset in 0 1 2 3; do
-              index=$(( (iteration + offset - 1) % 4 ))
+            kernels=(mul square)
+            for offset in 0 1; do
+              index=$(( (iteration + offset - 1) % 2 ))
               run_kernel "${kernels[index]}"
             done
           done
@@ -229,7 +229,7 @@ jobs:
             2>&1 | tee "${output}/field-summary.txt"
           go run ./cmd/benchcmp "${output}/scalar-default.txt" "${output}/scalar-tagged.txt" \
             2>&1 | tee "${output}/scalar-summary.txt"
-          for kernel in mul square squaren mulbyb3; do
+          for kernel in mul square; do
             go run ./cmd/benchcmp "${output}/root-default.txt" "${output}/root-${kernel}.txt" \
               2>&1 | tee "${output}/root-${kernel}-summary.txt"
           done
@@ -237,7 +237,7 @@ jobs:
         run: |
           set -euo pipefail
           output="${RUNNER_TEMP}/amd64-bench"
-          for kernel in mul square squaren mulbyb3; do
+          for kernel in mul square; do
             go run ./cmd/benchcmp -gate=kernel "${output}/root-default.txt" "${output}/root-${kernel}.txt"
           done
       - name: Check base-field thresholds

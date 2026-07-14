@@ -13,13 +13,3 @@ func mulMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
 //
 //go:noescape
 func squareMontgomeryADXAsm(out *[4]uint64, x *[4]uint64)
-
-// squareMontgomeryNADXAsm performs a public number of repeated squarings.
-//
-//go:noescape
-func squareMontgomeryNADXAsm(out *[4]uint64, x *[4]uint64, n uint64)
-
-// mulByB3MontgomeryADXAsm multiplies a Montgomery field element by 21.
-//
-//go:noescape
-func mulByB3MontgomeryADXAsm(out *[4]uint64, x *[4]uint64)

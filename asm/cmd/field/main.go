@@ -17,8 +17,6 @@ func main() {
 	ConstraintExpr("amd64,secp256k1_asm")
 	emitMul()
 	emitSquare()
-	emitSquareN()
-	emitMulByB3()
 	Generate()
 }
 
@@ -29,9 +27,14 @@ func emitMul() {
 
 	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
 	emitLoadElement("x", x)
-	result := emitMontgomeryProduct(x, func(i int) {
-		Load(Param("y"), reg.RAX)
+	y := AllocLocal(32)
+	Load(Param("y"), reg.RAX)
+	for i := range x {
 		MOVQ(Mem{Base: reg.RAX}.Offset(i*8), reg.RDX)
+		MOVQ(reg.RDX, y.Offset(i*8))
+	}
+	result := emitMontgomeryProduct(x, func(i int) {
+		MOVQ(y.Offset(i*8), reg.RDX)
 	})
 	emitStoreResult("out", result)
 	RET()
@@ -48,31 +51,6 @@ func emitSquare() {
 		MOVQ(x[i], reg.RDX)
 	})
 	emitStoreResult("out", result)
-	RET()
-}
-
-func emitSquareN() {
-	TEXT("squareMontgomeryNADXAsm", NOSPLIT, "func(out, x *[4]uint64, n uint64)")
-	Pragma("noescape")
-	Doc("squareMontgomeryNADXAsm performs a public number of repeated squarings.")
-
-	counter := AllocLocal(8)
-	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	emitLoadElement("x", x)
-	Load(Param("n"), reg.RAX)
-	MOVQ(reg.RAX, counter)
-	TESTQ(reg.RAX, reg.RAX)
-	JE(LabelRef("square_n_store"))
-
-	Label("square_n_loop")
-	x = emitMontgomeryProduct(x, func(i int) {
-		MOVQ(x[i], reg.RDX)
-	})
-	DECQ(counter)
-	JNE(LabelRef("square_n_loop"))
-
-	Label("square_n_store")
-	emitStoreResult("out", x)
 	RET()
 }
 
@@ -153,54 +131,6 @@ func emitMontgomeryShift(t [5]reg.GPPhysical) {
 	MOVQ(t[3], t[2])
 	MOVQ(t[4], t[3])
 	MOVQ(reg.RDI, t[4])
-}
-
-func emitMulByB3() {
-	TEXT("mulByB3MontgomeryADXAsm", NOSPLIT, "func(out, x *[4]uint64)")
-	Pragma("noescape")
-	Doc("mulByB3MontgomeryADXAsm multiplies a Montgomery field element by 21.")
-
-	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	result := [4]reg.GPPhysical{reg.RAX, reg.RBX, reg.RCX, reg.RDI}
-	emitLoadElement("x", x)
-	MOVQ(U32(21), reg.RDX)
-	MULXQ(x[0], result[0], reg.R12)
-	for i := 1; i < 4; i++ {
-		MULXQ(x[i], reg.RSI, reg.R13)
-		ADDQ(reg.R12, reg.RSI)
-		ADCQ(U8(0), reg.R13)
-		MOVQ(reg.RSI, result[i])
-		MOVQ(reg.R13, reg.R12)
-	}
-
-	MOVQ(U64(fieldC), reg.R13)
-	IMULQ(reg.R13, reg.R12)
-	ADDQ(reg.R12, result[0])
-	ADCQ(U8(0), result[1])
-	ADCQ(U8(0), result[2])
-	ADCQ(U8(0), result[3])
-	MOVQ(U32(0), reg.R12)
-	ADCQ(U8(0), reg.R12)
-	IMULQ(reg.R13, reg.R12)
-	ADDQ(reg.R12, result[0])
-	ADCQ(U8(0), result[1])
-	ADCQ(U8(0), result[2])
-	ADCQ(U8(0), result[3])
-
-	diff := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	for i := range diff {
-		MOVQ(result[i], diff[i])
-	}
-	MOVQ(U64(fieldP0), reg.R12)
-	SUBQ(reg.R12, diff[0])
-	SBBQ(I8(-1), diff[1])
-	SBBQ(I8(-1), diff[2])
-	SBBQ(I8(-1), diff[3])
-	for i := range diff {
-		CMOVQCS(result[i], diff[i])
-	}
-	emitStoreResult("out", diff)
-	RET()
 }
 
 func emitLoadElement(name string, dst [4]reg.GPPhysical) {

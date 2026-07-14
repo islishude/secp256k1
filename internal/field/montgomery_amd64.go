@@ -8,17 +8,15 @@ import (
 )
 
 type amd64KernelSet struct {
-	mul, mulByB3, square, squareN bool
+	mul, square bool
 }
 
 // amd64Kernels is fixed from public CPU state during package initialization.
 // It remains a variable so package tests can exercise fallback and benchmark
 // each retained kernel independently without changing production routing.
 var amd64Kernels = amd64KernelSet{
-	mul:     cpufeat.HasADXAndBMI2,
-	mulByB3: cpufeat.HasADXAndBMI2,
-	square:  cpufeat.HasADXAndBMI2,
-	squareN: cpufeat.HasADXAndBMI2,
+	mul:    cpufeat.HasADXAndBMI2,
+	square: cpufeat.HasADXAndBMI2,
 }
 
 func addMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
@@ -38,10 +36,6 @@ func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 }
 
 func mulByB3Montgomery(out, x *fiat.MontgomeryDomainFieldElement) {
-	if amd64Kernels.mulByB3 {
-		mulByB3MontgomeryADXAsm(fieldWords(out), fieldWords(x))
-		return
-	}
 	fiat.Mul(out, x, &b3Montgomery)
 }
 
@@ -54,10 +48,6 @@ func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement) {
 }
 
 func squareMontgomeryN(out, x *fiat.MontgomeryDomainFieldElement, n uint64) {
-	if amd64Kernels.squareN {
-		squareMontgomeryNADXAsm(fieldWords(out), fieldWords(x), n)
-		return
-	}
 	*out = *x
 	for range n {
 		fiat.Square(out, out)

@@ -16,12 +16,8 @@ func TestAMD64BenchmarkKernelSelection(t *testing.T) {
 		switch selection {
 		case "mul":
 			want.mul = true
-		case "mulbyb3":
-			want.mulByB3 = true
 		case "square":
 			want.square = true
-		case "squaren":
-			want.squareN = true
 		default:
 			t.Fatalf("test requires one benchmark kernel, got %q", selection)
 		}

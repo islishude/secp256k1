@@ -124,10 +124,8 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 	switch gate {
 	case "field":
 		improvements = map[string]float64{
-			"BenchmarkFieldMul":     15,
-			"BenchmarkFieldMulByB3": 20,
-			"BenchmarkFieldSquare":  15,
-			"BenchmarkFieldSquareN": 15,
+			"BenchmarkFieldMul":    15,
+			"BenchmarkFieldSquare": 15,
 		}
 	case "kernel":
 		return checkKernelGate(baseline, candidate)
@@ -137,6 +135,7 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 			"BenchmarkVerifyHotPublicKey": 10,
 		}
 		noRegression = []string{
+			"BenchmarkScalarBaseMultProjective",
 			"BenchmarkSignDigest",
 			"BenchmarkSignRecoverableDigest",
 			"BenchmarkVerifyDigest",

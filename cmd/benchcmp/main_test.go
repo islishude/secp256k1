@@ -36,6 +36,7 @@ func TestFinalGate(t *testing.T) {
 	all := []string{
 		"BenchmarkSignRecoverable",
 		"BenchmarkVerifyHotPublicKey",
+		"BenchmarkScalarBaseMultProjective",
 		"BenchmarkSignDigest",
 		"BenchmarkSignRecoverableDigest",
 		"BenchmarkVerifyDigest",

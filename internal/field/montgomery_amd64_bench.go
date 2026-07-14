@@ -23,12 +23,8 @@ func init() {
 	switch selection {
 	case "mul":
 		amd64Kernels.mul = true
-	case "mulbyb3":
-		amd64Kernels.mulByB3 = true
 	case "square":
 		amd64Kernels.square = true
-	case "squaren":
-		amd64Kernels.squareN = true
 	default:
 		panic("unknown SECP256K1_AMD64_BENCH_KERNEL value: " + selection)
 	}
