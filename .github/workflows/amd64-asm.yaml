@@ -1,6 +1,9 @@
 name: amd64-asm
 
 on:
+  push:
+    branches:
+      - "codex/amd64-avo-asm"
   pull_request:
     branches:
       - "main"
