@@ -10,9 +10,10 @@ import (
 
 func TestAMD64ScalarFeatureDispatch(t *testing.T) {
 	want := amd64ScalarKernelSet{
-		mul:     cpufeat.HasADXAndBMI2,
-		square:  cpufeat.HasADXAndBMI2,
-		squareN: cpufeat.HasADXAndBMI2,
+		mul:        cpufeat.HasADXAndBMI2,
+		square:     cpufeat.HasADXAndBMI2,
+		squareN:    cpufeat.HasADXAndBMI2,
+		invVartime: cpufeat.HasADXAndBMI2,
 	}
 	if amd64ScalarKernels != want {
 		t.Fatalf("dispatch=%+v, want %+v", amd64ScalarKernels, want)

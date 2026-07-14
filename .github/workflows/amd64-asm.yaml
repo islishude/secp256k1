@@ -173,7 +173,7 @@ jobs:
               go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
                 -run '^TestAMD64BenchmarkKernelSelection$' ./internal/field
           done
-          for kernel in accepted scalar-mul scalar-square scalar-squaren scalar all; do
+          for kernel in accepted scalar-mul scalar-square scalar-squaren scalar invvartime 'scalar,invvartime' all; do
             SECP256K1_AMD64_V2_BENCH_KERNEL="${kernel}" \
               go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
                 -run '^TestAMD64V2BenchmarkKernelSelection$' ./internal/scalar
@@ -190,7 +190,7 @@ jobs:
             : >"${output}/root-${kernel}.txt"
           done
           : >"${output}/root-w5.txt"
-          for mode in accepted scalar; do
+          for mode in accepted scalar all; do
             : >"${output}/root-v2-${mode}.txt"
           done
           for mode in accepted scalar-mul scalar-square scalar-squaren scalar; do
@@ -229,11 +229,12 @@ jobs:
           }
 
           run_v2_root() {
-            local mode="$1"
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${mode}" \
+            local label="$1"
+            local selection="$2"
+            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
               go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
-                -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
-                -benchmem -benchtime=500ms -count=1 . >>"${output}/root-v2-${mode}.txt"
+                -bench '^Benchmark(SignDigest|SignRecoverableDigest|VerifyDigest|RecoverDigest|VerifyHotPublicKey|VerifyParseCompressedCold|VerifyParseUncompressedCold|SignCompact|SignRecoverable|PublicKeyDerive|ScalarInvVartime|ScalarBaseMultProjective)$' \
+                -benchmem -benchtime=500ms -count=1 . >>"${output}/root-v2-${label}.txt"
           }
 
           run_v2_scalar() {
@@ -254,13 +255,12 @@ jobs:
               run_w5
               run_mode default
             fi
-            if (( iteration % 2 == 1 )); then
-              run_v2_root accepted
-              run_v2_root scalar
-            else
-              run_v2_root scalar
-              run_v2_root accepted
-            fi
+            v2_labels=(accepted scalar all)
+            v2_selections=(accepted scalar 'scalar,invvartime')
+            for offset in 0 1 2; do
+              index=$(( (iteration + offset - 1) % 3 ))
+              run_v2_root "${v2_labels[index]}" "${v2_selections[index]}"
+            done
             scalar_modes=(accepted scalar-mul scalar-square scalar-squaren scalar)
             for offset in 0 1 2 3 4; do
               index=$(( (iteration + offset - 1) % 5 ))
@@ -272,6 +272,24 @@ jobs:
               run_kernel "${kernels[index]}"
             done
           done
+      - name: Capture accepted and v2 CPU profiles
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/amd64-bench"
+          capture_profile() {
+            local label="$1"
+            local selection="$2"
+            local benchmark="$3"
+            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
+              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
+                -bench "^Benchmark${benchmark}$" -benchtime=3s -count=1 \
+                -cpuprofile="${output}/${label}-${benchmark}.cpu.pprof" . \
+                >"${output}/${label}-${benchmark}.profile.txt"
+          }
+          capture_profile accepted accepted SignRecoverable
+          capture_profile accepted accepted VerifyHotPublicKey
+          capture_profile v2 'scalar,invvartime' SignRecoverable
+          capture_profile v2 'scalar,invvartime' VerifyHotPublicKey
       - name: Build median reports
         run: |
           set -euo pipefail
@@ -290,6 +308,10 @@ jobs:
           done
           go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-scalar.txt" \
             2>&1 | tee "${output}/root-v2-scalar-summary.txt"
+          go run ./cmd/benchcmp "${output}/root-v2-scalar.txt" "${output}/root-v2-all.txt" \
+            2>&1 | tee "${output}/root-v2-invvartime-summary.txt"
+          go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-all.txt" \
+            2>&1 | tee "${output}/root-v2-final-summary.txt"
           go run ./cmd/benchcmp "${output}/scalar-v2-accepted.txt" "${output}/scalar-v2-scalar.txt" \
             2>&1 | tee "${output}/scalar-v2-summary.txt"
           for kernel in scalar-mul scalar-square scalar-squaren; do
@@ -316,6 +338,16 @@ jobs:
           output="${RUNNER_TEMP}/amd64-bench"
           go run ./cmd/benchcmp -gate=v2-scalar-micro "${output}/scalar-v2-accepted.txt" "${output}/scalar-v2-scalar.txt"
           go run ./cmd/benchcmp -gate=v2-scalar-e2e "${output}/root-v2-accepted.txt" "${output}/root-v2-scalar.txt"
+      - name: Check v2 public inversion thresholds
+        if: always()
+        run: |
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp -gate=v2-invvartime "${output}/root-v2-scalar.txt" "${output}/root-v2-all.txt"
+      - name: Check v2 final incremental thresholds
+        if: always()
+        run: |
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp -gate=v2-final "${output}/root-v2-accepted.txt" "${output}/root-v2-all.txt"
       - name: Check final end-to-end thresholds
         if: always()
         run: |

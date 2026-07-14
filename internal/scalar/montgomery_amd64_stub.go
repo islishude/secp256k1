@@ -18,3 +18,8 @@ func squareMontgomeryADXAsm(out *[4]uint64, x *[4]uint64)
 //
 //go:noescape
 func squareMontgomeryNADXAsm(out *[4]uint64, x *[4]uint64, n uint64)
+
+// invVartimeWordsADXAsm computes a scalar inverse for public canonical input words.
+//
+//go:noescape
+func invVartimeWordsADXAsm(out *[4]uint64, x *[4]uint64)

@@ -72,6 +72,45 @@ func TestInvVartimeAliasing(t *testing.T) {
 	}
 }
 
+func TestInvVartimeBackendMatchesGo(t *testing.T) {
+	edges := scalarMontgomeryBackendEdges()
+	for i, input := range edges {
+		checkInvVartimeWordsBackend(t, i, input)
+	}
+
+	state := uint64(0xd1b54a32d192ed03)
+	for i := range 100_000 {
+		var input [4]uint64
+		for j := range input {
+			state ^= state >> 12
+			state ^= state << 25
+			state ^= state >> 27
+			input[j] = state * 0x2545f4914f6cdd1d
+		}
+		input = reduceWordsModOrder(input)
+		checkInvVartimeWordsBackend(t, i+len(edges), input)
+	}
+}
+
+func checkInvVartimeWordsBackend(t *testing.T, index int, input [4]uint64) {
+	t.Helper()
+	want := invVartimeWordsGo(input)
+	var got [4]uint64
+	invVartimeWords(&got, &input)
+	if got != want {
+		t.Fatalf("InvVartime backend mismatch at input %d: got %x want %x", index, got, want)
+	}
+	if got != [4]uint64{} && !LessThanOrderWords(got) {
+		t.Fatalf("InvVartime backend returned non-canonical value at input %d: %x", index, got)
+	}
+
+	aliased := input
+	invVartimeWords(&aliased, &aliased)
+	if aliased != want {
+		t.Fatalf("aliased InvVartime backend mismatch at input %d: got %x want %x", index, aliased, want)
+	}
+}
+
 func BenchmarkScalarInvVartime(b *testing.B) {
 	xb := fromHex("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	var x, sink Element

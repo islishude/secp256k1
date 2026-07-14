@@ -9,8 +9,9 @@ import (
 
 func init() {
 	amd64ScalarKernels = amd64ScalarKernelSet{
-		mul:     amd64bench.Enabled("scalar-mul") && cpufeat.HasADXAndBMI2,
-		square:  amd64bench.Enabled("scalar-square") && cpufeat.HasADXAndBMI2,
-		squareN: amd64bench.Enabled("scalar-squaren") && cpufeat.HasADXAndBMI2,
+		mul:        amd64bench.Enabled("scalar-mul") && cpufeat.HasADXAndBMI2,
+		square:     amd64bench.Enabled("scalar-square") && cpufeat.HasADXAndBMI2,
+		squareN:    amd64bench.Enabled("scalar-squaren") && cpufeat.HasADXAndBMI2,
+		invVartime: amd64bench.Enabled("invvartime") && cpufeat.HasADXAndBMI2,
 	}
 }

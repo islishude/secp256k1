@@ -34,9 +34,7 @@ check-main-deps:
 	if [ "$$count" -ne 1 ]; then printf '%s\n' "main module has external dependencies:" "$$mods" >&2; exit 1; fi
 
 vartime-audit:
-	@if grep -nH 'Vartime' sign.go privatekey.go rfc6979.go; then \
-		printf '%s\n' 'Vartime function used in a secret path' >&2; exit 1; \
-	fi
+	./scripts/check-vartime.sh
 
 generate-asm:
 	cd asm && go generate ./...

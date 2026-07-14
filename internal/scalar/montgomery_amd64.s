@@ -53,32 +53,32 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -115,32 +115,32 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -177,32 +177,32 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -239,32 +239,32 @@ TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -302,17 +302,13 @@ TEXT ·squareMontgomeryADXAsm(SB), NOSPLIT, $0-16
 	MOVQ    8(SI), X1
 	MOVQ    16(SI), X2
 	MOVQ    24(SI), X3
-	MOVQ    X0, X4
-	MOVQ    X1, X5
-	MOVQ    X2, X6
-	MOVQ    X3, X7
 	XORQ    R8, R8
 	MOVQ    R8, R9
 	MOVQ    R8, R10
 	MOVQ    R8, R11
 	MOVQ    R8, R12
 	MOVQ    R8, R13
-	MOVQ    X4, DX
+	MOVQ    X0, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -342,39 +338,39 @@ TEXT ·squareMontgomeryADXAsm(SB), NOSPLIT, $0-16
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X5, DX
+	MOVQ    X1, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -404,39 +400,39 @@ TEXT ·squareMontgomeryADXAsm(SB), NOSPLIT, $0-16
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X6, DX
+	MOVQ    X2, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -466,39 +462,39 @@ TEXT ·squareMontgomeryADXAsm(SB), NOSPLIT, $0-16
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X7, DX
+	MOVQ    X3, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -528,32 +524,32 @@ TEXT ·squareMontgomeryADXAsm(SB), NOSPLIT, $0-16
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -596,17 +592,13 @@ TEXT ·squareMontgomeryNADXAsm(SB), NOSPLIT, $0-24
 	JEQ   square_n_store_input
 
 square_n_loop:
-	MOVQ    X0, X4
-	MOVQ    X1, X5
-	MOVQ    X2, X6
-	MOVQ    X3, X7
 	XORQ    R8, R8
 	MOVQ    R8, R9
 	MOVQ    R8, R10
 	MOVQ    R8, R11
 	MOVQ    R8, R12
 	MOVQ    R8, R13
-	MOVQ    X4, DX
+	MOVQ    X0, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -636,39 +628,39 @@ square_n_loop:
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X5, DX
+	MOVQ    X1, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -698,39 +690,39 @@ square_n_loop:
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X6, DX
+	MOVQ    X2, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -760,39 +752,39 @@ square_n_loop:
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
 	MOVQ    R12, R11
 	MOVQ    R13, R12
 	XORQ    R13, R13
-	MOVQ    X7, DX
+	MOVQ    X3, DX
 	XORQ    BX, BX
 	MOVQ    X0, SI
 	MULXQ   SI, AX, R14
@@ -822,32 +814,32 @@ square_n_loop:
 	MOVQ    R8, DX
 	MOVQ    $0x4b0dff665588b13f, AX
 	IMULQ   AX, DX
-	XORQ    BX, BX
-	MOVQ    $0xbfd25e8cd0364141, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   BX, AX
-	ADOXQ   R8, AX
-	MOVQ    AX, R8
-	MOVQ    $0xbaaedce6af48a03b, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R9, AX
-	MOVQ    AX, R9
-	MOVQ    $0xfffffffffffffffe, SI
-	MULXQ   SI, AX, R14
-	ADCXQ   R15, AX
-	ADOXQ   R10, AX
-	MOVQ    AX, R10
-	MOVQ    $0xffffffffffffffff, SI
-	MULXQ   SI, AX, R15
-	ADCXQ   R14, AX
-	ADOXQ   R11, AX
-	MOVQ    AX, R11
-	ADCXQ   BX, R15
-	ADOXQ   BX, R15
-	ADDQ    R12, R15
+	MOVQ    $0x402da1732fc9bebf, SI
+	MULXQ   SI, AX, BX
+	MOVQ    AX, X8
+	MOVQ    $0x4551231950b75fc4, SI
+	MULXQ   SI, AX, CX
+	ADDQ    BX, AX
+	ADCQ    $0x00, CX
+	MOVQ    AX, X9
+	MOVQ    DX, AX
+	ADDQ    CX, AX
+	MOVQ    $0x0000000000000000, BX
+	ADCQ    $0x00, BX
+	MOVQ    AX, X10
+	MOVQ    BX, X11
+	MOVQ    X8, AX
+	SUBQ    AX, R8
+	MOVQ    X9, AX
+	SBBQ    AX, R9
+	MOVQ    X10, AX
+	SBBQ    AX, R10
+	MOVQ    X11, AX
+	SBBQ    AX, R11
+	SBBQ    $0x00, R12
+	SBBQ    $0x00, R13
+	ADDQ    DX, R12
 	ADCQ    $0x00, R13
-	MOVQ    R15, R12
 	MOVQ    R9, R8
 	MOVQ    R10, R9
 	MOVQ    R11, R10
@@ -892,4 +884,421 @@ square_n_store_result:
 	MOVQ R15, 8(SI)
 	MOVQ AX, 16(SI)
 	MOVQ CX, 24(SI)
+	RET
+
+// func invVartimeWordsADXAsm(out *[4]uint64, x *[4]uint64)
+// Requires: ADX, BMI2, SSE2
+TEXT ·invVartimeWordsADXAsm(SB), NOSPLIT, $0-16
+	MOVQ x+8(FP), SI
+	MOVQ (SI), R8
+	MOVQ $0xbfd25e8cd0364141, R12
+	MOVQ 8(SI), R9
+	MOVQ $0xbaaedce6af48a03b, R13
+	MOVQ 16(SI), R10
+	MOVQ $0xfffffffffffffffe, R14
+	MOVQ 24(SI), R11
+	MOVQ $0xffffffffffffffff, R15
+	MOVQ $0x0000000000000001, AX
+	MOVQ AX, X0
+	XORQ AX, AX
+	MOVQ AX, X1
+	MOVQ AX, X2
+	MOVQ AX, X3
+	MOVQ AX, X4
+	MOVQ AX, X5
+	MOVQ AX, X6
+	MOVQ AX, X7
+	MOVQ R8, AX
+	ORQ  R9, AX
+	ORQ  R10, AX
+	ORQ  R11, AX
+	JEQ  inv_return_zero
+
+inv_loop:
+	MOVQ R9, AX
+	ORQ  R10, AX
+	ORQ  R11, AX
+	JNZ  inv_u_not_one
+	CMPQ R8, $0x01
+	JEQ  inv_return_x1
+
+inv_u_not_one:
+	MOVQ R13, AX
+	ORQ  R14, AX
+	ORQ  R15, AX
+	JNZ  inv_v_not_one
+	CMPQ R12, $0x01
+	JEQ  inv_return_x2
+
+inv_v_not_one:
+inv_reduce_u:
+	TESTQ $0x00000001, R8
+	JNZ   inv_reduce_v
+	TESTQ R8, R8
+	JEQ   inv_u_shift_64
+	BSFQ  R8, CX
+	MOVQ  $0x0000000000000040, SI
+	SUBQ  CX, SI
+	SHRXQ CX, R8, AX
+	SHLXQ SI, R9, BX
+	ORQ   BX, AX
+	MOVQ  AX, R8
+	SHRXQ CX, R9, AX
+	SHLXQ SI, R10, BX
+	ORQ   BX, AX
+	MOVQ  AX, R9
+	SHRXQ CX, R10, AX
+	SHLXQ SI, R11, BX
+	ORQ   BX, AX
+	MOVQ  AX, R10
+	SHRXQ CX, R11, AX
+	MOVQ  AX, R11
+	JMP   inv_u_half
+
+inv_u_shift_64:
+	MOVQ R9, R8
+	MOVQ R10, R9
+	MOVQ R11, R10
+	XORQ R11, R11
+	MOVQ $0x0000000000000040, CX
+
+inv_u_half:
+	MOVQ  X0, DX
+	MOVQ  $0x4b0dff665588b13f, AX
+	IMULQ AX, DX
+	CMPQ  CX, $0x40
+	JEQ   inv_u_q_ready
+	MOVQ  $0x0000000000000001, AX
+	SHLXQ CX, AX, AX
+	DECQ  AX
+	ANDQ  AX, DX
+
+inv_u_q_ready:
+	MOVQ  CX, X13
+	XORQ  SI, SI
+	MOVQ  $0xbfd25e8cd0364141, CX
+	MULXQ CX, AX, DI
+	ADCXQ SI, AX
+	MOVQ  X0, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X8
+	MOVQ  $0xbaaedce6af48a03b, CX
+	MULXQ CX, AX, BX
+	ADCXQ DI, AX
+	MOVQ  X1, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X9
+	MOVQ  $0xfffffffffffffffe, CX
+	MULXQ CX, AX, DI
+	ADCXQ BX, AX
+	MOVQ  X2, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X10
+	MOVQ  $0xffffffffffffffff, CX
+	MULXQ CX, AX, BX
+	ADCXQ DI, AX
+	MOVQ  X3, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X11
+	ADCXQ SI, BX
+	ADOXQ SI, BX
+	MOVQ  BX, X12
+	MOVQ  X13, CX
+	CMPQ  CX, $0x40
+	JEQ   inv_u_half_64
+	MOVQ  $0x0000000000000040, SI
+	SUBQ  CX, SI
+	MOVQ  X8, AX
+	MOVQ  X9, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X0
+	MOVQ  X9, AX
+	MOVQ  X10, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X1
+	MOVQ  X10, AX
+	MOVQ  X11, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X2
+	MOVQ  X11, AX
+	MOVQ  X12, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X3
+	JMP   inv_u_half_done
+
+inv_u_half_64:
+	MOVQ X9, X0
+	MOVQ X10, X1
+	MOVQ X11, X2
+	MOVQ X12, X3
+
+inv_u_half_done:
+	JMP inv_reduce_u
+
+inv_reduce_v:
+	TESTQ $0x00000001, R12
+	JNZ   inv_reduced
+	TESTQ R12, R12
+	JEQ   inv_v_shift_64
+	BSFQ  R12, CX
+	MOVQ  $0x0000000000000040, SI
+	SUBQ  CX, SI
+	SHRXQ CX, R12, AX
+	SHLXQ SI, R13, BX
+	ORQ   BX, AX
+	MOVQ  AX, R12
+	SHRXQ CX, R13, AX
+	SHLXQ SI, R14, BX
+	ORQ   BX, AX
+	MOVQ  AX, R13
+	SHRXQ CX, R14, AX
+	SHLXQ SI, R15, BX
+	ORQ   BX, AX
+	MOVQ  AX, R14
+	SHRXQ CX, R15, AX
+	MOVQ  AX, R15
+	JMP   inv_v_half
+
+inv_v_shift_64:
+	MOVQ R13, R12
+	MOVQ R14, R13
+	MOVQ R15, R14
+	XORQ R15, R15
+	MOVQ $0x0000000000000040, CX
+
+inv_v_half:
+	MOVQ  X4, DX
+	MOVQ  $0x4b0dff665588b13f, AX
+	IMULQ AX, DX
+	CMPQ  CX, $0x40
+	JEQ   inv_v_q_ready
+	MOVQ  $0x0000000000000001, AX
+	SHLXQ CX, AX, AX
+	DECQ  AX
+	ANDQ  AX, DX
+
+inv_v_q_ready:
+	MOVQ  CX, X13
+	XORQ  SI, SI
+	MOVQ  $0xbfd25e8cd0364141, CX
+	MULXQ CX, AX, DI
+	ADCXQ SI, AX
+	MOVQ  X4, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X8
+	MOVQ  $0xbaaedce6af48a03b, CX
+	MULXQ CX, AX, BX
+	ADCXQ DI, AX
+	MOVQ  X5, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X9
+	MOVQ  $0xfffffffffffffffe, CX
+	MULXQ CX, AX, DI
+	ADCXQ BX, AX
+	MOVQ  X6, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X10
+	MOVQ  $0xffffffffffffffff, CX
+	MULXQ CX, AX, BX
+	ADCXQ DI, AX
+	MOVQ  X7, CX
+	ADOXQ CX, AX
+	MOVQ  AX, X11
+	ADCXQ SI, BX
+	ADOXQ SI, BX
+	MOVQ  BX, X12
+	MOVQ  X13, CX
+	CMPQ  CX, $0x40
+	JEQ   inv_v_half_64
+	MOVQ  $0x0000000000000040, SI
+	SUBQ  CX, SI
+	MOVQ  X8, AX
+	MOVQ  X9, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X4
+	MOVQ  X9, AX
+	MOVQ  X10, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X5
+	MOVQ  X10, AX
+	MOVQ  X11, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X6
+	MOVQ  X11, AX
+	MOVQ  X12, BX
+	SHRXQ CX, AX, AX
+	SHLXQ SI, BX, BX
+	ORQ   BX, AX
+	MOVQ  AX, X7
+	JMP   inv_v_half_done
+
+inv_v_half_64:
+	MOVQ X9, X4
+	MOVQ X10, X5
+	MOVQ X11, X6
+	MOVQ X12, X7
+
+inv_v_half_done:
+	JMP inv_reduce_v
+
+inv_reduced:
+	MOVQ R9, AX
+	ORQ  R10, AX
+	ORQ  R11, AX
+	JNZ  inv_reduced_u_not_one
+	CMPQ R8, $0x01
+	JEQ  inv_return_x1
+
+inv_reduced_u_not_one:
+	MOVQ R13, AX
+	ORQ  R14, AX
+	ORQ  R15, AX
+	JNZ  inv_reduced_v_not_one
+	CMPQ R12, $0x01
+	JEQ  inv_return_x2
+
+inv_reduced_v_not_one:
+	MOVQ R8, AX
+	SUBQ R12, AX
+	MOVQ R9, AX
+	SBBQ R13, AX
+	MOVQ R10, AX
+	SBBQ R14, AX
+	MOVQ R11, AX
+	SBBQ R15, AX
+	JCS  inv_v_greater
+	SUBQ R12, R8
+	SBBQ R13, R9
+	SBBQ R14, R10
+	SBBQ R15, R11
+	MOVQ X0, AX
+	MOVQ X4, BX
+	SUBQ BX, AX
+	MOVQ AX, X8
+	MOVQ X1, AX
+	MOVQ X5, BX
+	SBBQ BX, AX
+	MOVQ AX, X9
+	MOVQ X2, AX
+	MOVQ X6, BX
+	SBBQ BX, AX
+	MOVQ AX, X10
+	MOVQ X3, AX
+	MOVQ X7, BX
+	SBBQ BX, AX
+	MOVQ AX, X11
+	JCC  inv_x1_sub_x2_no_borrow
+	MOVQ X8, AX
+	MOVQ $0xbfd25e8cd0364141, BX
+	ADDQ BX, AX
+	MOVQ AX, X0
+	MOVQ X9, AX
+	MOVQ $0xbaaedce6af48a03b, BX
+	ADCQ BX, AX
+	MOVQ AX, X1
+	MOVQ X10, AX
+	MOVQ $0xfffffffffffffffe, BX
+	ADCQ BX, AX
+	MOVQ AX, X2
+	MOVQ X11, AX
+	MOVQ $0xffffffffffffffff, BX
+	ADCQ BX, AX
+	MOVQ AX, X3
+	JMP  inv_x1_sub_x2_done
+
+inv_x1_sub_x2_no_borrow:
+	MOVQ X8, X0
+	MOVQ X9, X1
+	MOVQ X10, X2
+	MOVQ X11, X3
+
+inv_x1_sub_x2_done:
+	JMP inv_loop
+
+inv_v_greater:
+	SUBQ R8, R12
+	SBBQ R9, R13
+	SBBQ R10, R14
+	SBBQ R11, R15
+	MOVQ X4, AX
+	MOVQ X0, BX
+	SUBQ BX, AX
+	MOVQ AX, X8
+	MOVQ X5, AX
+	MOVQ X1, BX
+	SBBQ BX, AX
+	MOVQ AX, X9
+	MOVQ X6, AX
+	MOVQ X2, BX
+	SBBQ BX, AX
+	MOVQ AX, X10
+	MOVQ X7, AX
+	MOVQ X3, BX
+	SBBQ BX, AX
+	MOVQ AX, X11
+	JCC  inv_x2_sub_x1_no_borrow
+	MOVQ X8, AX
+	MOVQ $0xbfd25e8cd0364141, BX
+	ADDQ BX, AX
+	MOVQ AX, X4
+	MOVQ X9, AX
+	MOVQ $0xbaaedce6af48a03b, BX
+	ADCQ BX, AX
+	MOVQ AX, X5
+	MOVQ X10, AX
+	MOVQ $0xfffffffffffffffe, BX
+	ADCQ BX, AX
+	MOVQ AX, X6
+	MOVQ X11, AX
+	MOVQ $0xffffffffffffffff, BX
+	ADCQ BX, AX
+	MOVQ AX, X7
+	JMP  inv_x2_sub_x1_done
+
+inv_x2_sub_x1_no_borrow:
+	MOVQ X8, X4
+	MOVQ X9, X5
+	MOVQ X10, X6
+	MOVQ X11, X7
+
+inv_x2_sub_x1_done:
+	JMP inv_loop
+
+inv_return_x1:
+	MOVQ out+0(FP), SI
+	MOVQ X0, (SI)
+	MOVQ X1, 8(SI)
+	MOVQ X2, 16(SI)
+	MOVQ X3, 24(SI)
+	RET
+
+inv_return_x2:
+	MOVQ out+0(FP), SI
+	MOVQ X4, (SI)
+	MOVQ X5, 8(SI)
+	MOVQ X6, 16(SI)
+	MOVQ X7, 24(SI)
+	RET
+
+inv_return_zero:
+	MOVQ out+0(FP), SI
+	XORQ AX, AX
+	MOVQ AX, (SI)
+	MOVQ AX, 8(SI)
+	MOVQ AX, 16(SI)
+	MOVQ AX, 24(SI)
 	RET

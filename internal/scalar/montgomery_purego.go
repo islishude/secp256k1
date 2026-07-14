@@ -18,3 +18,7 @@ func squareMontgomeryN(out, x *fiat.MontgomeryDomainFieldElement, n uint64) {
 		fiat.Square(out, out)
 	}
 }
+
+func invVartimeWords(out, x *[4]uint64) {
+	*out = invVartimeWordsGo(*x)
+}
