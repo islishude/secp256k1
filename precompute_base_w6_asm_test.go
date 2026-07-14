@@ -1,4 +1,4 @@
-//go:build arm64 && secp256k1_asm
+//go:build (arm64 && secp256k1_asm) || (amd64 && secp256k1_asm && !secp256k1_amd64_w5_bench)
 
 package secp256k1
 
@@ -76,5 +76,15 @@ func TestW6SignedRecodingHighestWindowCarry(t *testing.T) {
 	want.Sub(&want, big.NewInt(1))
 	if reconstructed.Cmp(&want) != 0 {
 		t.Fatalf("reconstructed scalar = %x, want %x", &reconstructed, &want)
+	}
+}
+
+func TestW6TableGrowthLimit(t *testing.T) {
+	const (
+		w5Bytes = baseWindows * baseTableSize * 8 * 8
+		w6Bytes = baseWindowsW6 * baseTableSizeW6 * 8 * 8
+	)
+	if growth := w6Bytes - w5Bytes; growth > 40*1024 {
+		t.Fatalf("W6 table growth = %d bytes, limit %d", growth, 40*1024)
 	}
 }

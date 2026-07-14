@@ -83,6 +83,26 @@ func TestKernelGate(t *testing.T) {
 	}
 }
 
+func TestW6Gate(t *testing.T) {
+	baseline := map[string]*samples{
+		"BenchmarkScalarBaseMultProjective": {nsPerOp: []float64{100}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkSignRecoverable":          {nsPerOp: []float64{100}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkVerifyHotPublicKey":       {nsPerOp: []float64{100}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+	}
+	candidate := map[string]*samples{
+		"BenchmarkScalarBaseMultProjective": {nsPerOp: []float64{95}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkSignRecoverable":          {nsPerOp: []float64{97}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+		"BenchmarkVerifyHotPublicKey":       {nsPerOp: []float64{101}, bytesPerOp: []float64{0}, allocsPerOp: []float64{0}},
+	}
+	if err := checkGate("w6", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	candidate["BenchmarkSignRecoverable"].nsPerOp[0] = 98
+	if err := checkGate("w6", baseline, candidate); err == nil {
+		t.Fatal("expected insufficient W6 signing contribution failure")
+	}
+}
+
 func TestCanonicalBenchmarkName(t *testing.T) {
 	if got := canonicalBenchmarkName("BenchmarkFoo/bar-16"); got != "BenchmarkFoo/bar" {
 		t.Fatalf("canonical name = %q", got)

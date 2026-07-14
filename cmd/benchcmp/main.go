@@ -21,10 +21,10 @@ type samples struct {
 }
 
 func main() {
-	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, or final")
+	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, w6, or final")
 	flag.Parse()
 	if flag.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|final] <baseline.txt> <candidate.txt>")
+		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|w6|final] <baseline.txt> <candidate.txt>")
 		os.Exit(2)
 	}
 	baseline, err := readBenchmarks(flag.Arg(0))
@@ -129,6 +129,12 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 		}
 	case "kernel":
 		return checkKernelGate(baseline, candidate)
+	case "w6":
+		improvements = map[string]float64{
+			"BenchmarkScalarBaseMultProjective": 5,
+			"BenchmarkSignRecoverable":          3,
+		}
+		noRegression = []string{"BenchmarkVerifyHotPublicKey"}
 	case "final":
 		improvements = map[string]float64{
 			"BenchmarkSignRecoverable":    10,

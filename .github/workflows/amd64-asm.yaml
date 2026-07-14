@@ -179,6 +179,7 @@ jobs:
           for kernel in mul square; do
             : >"${output}/root-${kernel}.txt"
           done
+          : >"${output}/root-w5.txt"
 
           run_mode() {
             local mode="$1"
@@ -205,12 +206,20 @@ jobs:
                 -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${kernel}.txt"
           }
 
+          run_w5() {
+            go test -tags='secp256k1_asm,secp256k1_amd64_w5_bench' -run '^$' \
+              -bench '^Benchmark(ScalarBaseMultProjective|SignRecoverable|VerifyHotPublicKey)$' \
+              -benchmem -benchtime=500ms -count=1 . >>"${output}/root-w5.txt"
+          }
+
           for iteration in $(seq 1 10); do
             if (( iteration % 2 == 1 )); then
               run_mode default
+              run_w5
               run_mode tagged
             else
               run_mode tagged
+              run_w5
               run_mode default
             fi
             kernels=(mul square)
@@ -229,6 +238,8 @@ jobs:
             2>&1 | tee "${output}/field-summary.txt"
           go run ./cmd/benchcmp "${output}/scalar-default.txt" "${output}/scalar-tagged.txt" \
             2>&1 | tee "${output}/scalar-summary.txt"
+          go run ./cmd/benchcmp "${output}/root-w5.txt" "${output}/root-tagged.txt" \
+            2>&1 | tee "${output}/root-w6-stage-summary.txt"
           for kernel in mul square; do
             go run ./cmd/benchcmp "${output}/root-default.txt" "${output}/root-${kernel}.txt" \
               2>&1 | tee "${output}/root-${kernel}-summary.txt"
@@ -244,6 +255,10 @@ jobs:
         run: |
           output="${RUNNER_TEMP}/amd64-bench"
           go run ./cmd/benchcmp -gate=field "${output}/field-default.txt" "${output}/field-tagged.txt"
+      - name: Check W6 incremental thresholds
+        run: |
+          output="${RUNNER_TEMP}/amd64-bench"
+          go run ./cmd/benchcmp -gate=w6 "${output}/root-w5.txt" "${output}/root-tagged.txt"
       - name: Check final end-to-end thresholds
         if: always()
         run: |
