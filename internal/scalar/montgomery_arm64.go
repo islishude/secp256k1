@@ -4,6 +4,14 @@ package scalar
 
 import fiat "github.com/islishude/secp256k1/internal/fiat/scalarfield"
 
+func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
+	fiat.Mul(out, x, y)
+}
+
+func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement) {
+	fiat.Square(out, x)
+}
+
 // squareMontgomeryN performs a public, fixed number of squarings. Its loop
 // count is determined by the static inversion addition chain, not secret data.
 // It supports out == x and n == 0.

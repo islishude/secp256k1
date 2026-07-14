@@ -103,6 +103,96 @@ func TestW6Gate(t *testing.T) {
 	}
 }
 
+func TestV2ScalarGates(t *testing.T) {
+	baseline := benchmarkSamples(map[string]float64{
+		"BenchmarkScalarMul":          100,
+		"BenchmarkScalarSquare":       100,
+		"BenchmarkScalarSquareN":      100,
+		"BenchmarkScalarInv":          100,
+		"BenchmarkSignRecoverable":    100,
+		"BenchmarkVerifyHotPublicKey": 100,
+	})
+	candidate := benchmarkSamples(map[string]float64{
+		"BenchmarkScalarMul":          85,
+		"BenchmarkScalarSquare":       84,
+		"BenchmarkScalarSquareN":      80,
+		"BenchmarkScalarInv":          89,
+		"BenchmarkSignRecoverable":    97,
+		"BenchmarkVerifyHotPublicKey": 101,
+	})
+	if err := checkGate("v2-scalar-micro", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkGate("v2-scalar-e2e", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	candidate["BenchmarkScalarSquareN"].nsPerOp[0] = 86
+	if err := checkGate("v2-scalar-micro", baseline, candidate); err == nil {
+		t.Fatal("expected scalar microbenchmark failure")
+	}
+	candidate["BenchmarkScalarSquareN"].nsPerOp[0] = 80
+	candidate["BenchmarkSignRecoverable"].nsPerOp[0] = 98
+	if err := checkGate("v2-scalar-e2e", baseline, candidate); err == nil {
+		t.Fatal("expected scalar end-to-end failure")
+	}
+}
+
+func TestV2InvVartimeAndFinalGates(t *testing.T) {
+	baseline := benchmarkSamples(map[string]float64{
+		"BenchmarkScalarInvVartime":            100,
+		"BenchmarkSignRecoverable":             100,
+		"BenchmarkVerifyHotPublicKey":          100,
+		"BenchmarkScalarBaseMultProjective":    100,
+		"BenchmarkSignDigest":                  100,
+		"BenchmarkSignRecoverableDigest":       100,
+		"BenchmarkVerifyDigest":                100,
+		"BenchmarkVerifyParseCompressedCold":   100,
+		"BenchmarkVerifyParseUncompressedCold": 100,
+		"BenchmarkRecoverDigest":               100,
+		"BenchmarkSignCompact":                 100,
+		"BenchmarkPublicKeyDerive":             100,
+	})
+	candidate := benchmarkSamples(map[string]float64{
+		"BenchmarkScalarInvVartime":            84,
+		"BenchmarkSignRecoverable":             97,
+		"BenchmarkVerifyHotPublicKey":          96,
+		"BenchmarkScalarBaseMultProjective":    100,
+		"BenchmarkSignDigest":                  100,
+		"BenchmarkSignRecoverableDigest":       100,
+		"BenchmarkVerifyDigest":                100,
+		"BenchmarkVerifyParseCompressedCold":   100,
+		"BenchmarkVerifyParseUncompressedCold": 100,
+		"BenchmarkRecoverDigest":               100,
+		"BenchmarkSignCompact":                 100,
+		"BenchmarkPublicKeyDerive":             100,
+	})
+	if err := checkGate("v2-invvartime", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	if err := checkGate("v2-final", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	candidate["BenchmarkVerifyHotPublicKey"].nsPerOp[0] = 98
+	if err := checkGate("v2-invvartime", baseline, candidate); err == nil {
+		t.Fatal("expected InvVartime end-to-end failure")
+	}
+	if err := checkGate("v2-final", baseline, candidate); err == nil {
+		t.Fatal("expected v2 final failure")
+	}
+}
+
+func benchmarkSamples(values map[string]float64) map[string]*samples {
+	result := make(map[string]*samples, len(values))
+	for name, value := range values {
+		result[name] = &samples{
+			nsPerOp:     []float64{value},
+			bytesPerOp:  []float64{0},
+			allocsPerOp: []float64{0},
+		}
+	}
+	return result
+}
+
 func TestCanonicalBenchmarkName(t *testing.T) {
 	if got := canonicalBenchmarkName("BenchmarkFoo/bar-16"); got != "BenchmarkFoo/bar" {
 		t.Fatalf("canonical name = %q", got)
