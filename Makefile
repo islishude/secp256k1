@@ -1,9 +1,14 @@
-.PHONY: test test-arm64-asm lint benchmark perf-check perf-check-arm64 check-main-deps vartime-audit generate-asm check-asm-module generate-check amd64-asm-audit fuzz-smoke ct-smoke format
+.PHONY: test test-arm64-asm test-amd64-asm lint benchmark perf-check perf-check-arm64 perf-check-amd64 check-main-deps vartime-audit generate-asm check-asm-module generate-check amd64-asm-audit fuzz-smoke ct-smoke format
 test:
 	go test -v -count=1 -cover -race ./...
 	cd benchmark && go test .
 
 test-arm64-asm:
+	go test -tags=secp256k1_asm ./...
+	go test -race -tags=secp256k1_asm ./...
+
+test-amd64-asm:
+	@test "$$(go env GOARCH)" = amd64 || { printf '%s\n' 'test-amd64-asm requires an amd64 host' >&2; exit 1; }
 	go test -tags=secp256k1_asm ./...
 	go test -race -tags=secp256k1_asm ./...
 
@@ -18,6 +23,10 @@ perf-check:
 	go test -run '^$$' -bench '^Benchmark(VerifyHotPublicKey|SignRecoverable|RecoverDigest)$$' -benchmem -count=5 .
 
 perf-check-arm64:
+	go test -tags=secp256k1_asm -run '^$$' -bench '^Benchmark(VerifyHotPublicKey|SignRecoverable|RecoverDigest)$$' -benchmem -count=5 .
+
+perf-check-amd64:
+	@test "$$(go env GOARCH)" = amd64 || { printf '%s\n' 'perf-check-amd64 requires an amd64 host' >&2; exit 1; }
 	go test -tags=secp256k1_asm -run '^$$' -bench '^Benchmark(VerifyHotPublicKey|SignRecoverable|RecoverDigest)$$' -benchmem -count=5 .
 
 check-main-deps:

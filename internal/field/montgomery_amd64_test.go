@@ -3,34 +3,10 @@
 package field
 
 import (
-	"os"
 	"testing"
 
 	"github.com/islishude/secp256k1/internal/cpufeat"
 )
-
-func init() {
-	selection := os.Getenv("SECP256K1_AMD64_BENCH_KERNEL")
-	if selection == "" || selection == "all" {
-		return
-	}
-	amd64Kernels = amd64KernelSet{}
-	if !cpufeat.HasADXAndBMI2 {
-		return
-	}
-	switch selection {
-	case "mul":
-		amd64Kernels.mul = true
-	case "mulbyb3":
-		amd64Kernels.mulByB3 = true
-	case "square":
-		amd64Kernels.square = true
-	case "squaren":
-		amd64Kernels.squareN = true
-	default:
-		panic("unknown SECP256K1_AMD64_BENCH_KERNEL value: " + selection)
-	}
-}
 
 func TestAMD64FeatureDispatch(t *testing.T) {
 	want := amd64KernelSet{

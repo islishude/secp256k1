@@ -13,6 +13,48 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          check-latest: true
+          cache-dependency-path: |
+            go.mod
+            asm/go.sum
+            benchmark/go.mod
+      - name: Golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+      - name: Verify root module and source
+        run: |
+          set -euo pipefail
+          go build ./...
+          gofmt -d .
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go fix -diff ./...
+          go mod tidy -diff
+          make check-main-deps vartime-audit
+      - name: Test default backend
+        run: go test -v -race -count=1 -cover ./...
+      - name: Fuzz default sign, verify, and recovery path
+        run: go test -run '^$' -fuzz=FuzzSignVerifyRecoverDigest -fuzztime=10s .
+      - name: Verify benchmark module
+        working-directory: ./benchmark
+        run: |
+          set -euo pipefail
+          go build ./...
+          gofmt -d .
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go fix -diff ./...
+          go mod tidy -diff
+          go test -race -count=1 .
+
   correctness:
     strategy:
       matrix:
@@ -35,8 +77,14 @@ jobs:
         run: make check-asm-module
       - name: Verify generated files
         run: make generate-check
+      - name: Build and vet tagged AMD64 backend
+        run: |
+          go build -tags=secp256k1_asm ./...
+          go vet -tags=secp256k1_asm ./...
       - name: Test tagged AMD64 backend
         run: go test -v -race -count=1 -tags=secp256k1_asm ./...
+      - name: Fuzz tagged base-field arithmetic
+        run: go test -tags=secp256k1_asm -run '^$' -fuzz=FuzzElementArithmetic -fuzztime=10s ./internal/field
       - name: Constant-time smoke
         env:
           SECP256K1_CT_TEST: "1"
@@ -115,6 +163,11 @@ jobs:
           go test -v -count=1 -tags=secp256k1_asm -run TestAMD64FeatureDispatch ./internal/field \
             | tee "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
           grep -q 'CPUID ADX+BMI2=true' "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
+          for kernel in mul square squaren mulbyb3; do
+            SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
+              go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
+                -run '^TestAMD64BenchmarkKernelSelection$' ./internal/field
+          done
       - name: Interleave default and tagged benchmarks
         run: |
           set -euo pipefail
@@ -147,7 +200,7 @@ jobs:
           run_kernel() {
             local kernel="$1"
             SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
-              go test -tags=secp256k1_asm -run '^$' \
+              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
                 -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
                 -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${kernel}.txt"
           }

@@ -8,13 +8,7 @@ import (
 )
 
 func TestMontgomeryBackendMatchesFiat(t *testing.T) {
-	edges := [][4]uint64{
-		{},
-		{1},
-		{2},
-		{0xfffffffefffffc2e, ^uint64(0), ^uint64(0), ^uint64(0)},
-		{0x0123456789abcdef, 0xfedcba9876543210, 0x55aa55aa55aa55aa, 0x7fffffffffffffff},
-	}
+	edges := montgomeryBackendEdges()
 	for _, x := range edges {
 		for _, y := range edges {
 			checkMontgomeryBackend(t, x, y)
@@ -26,6 +20,47 @@ func TestMontgomeryBackendMatchesFiat(t *testing.T) {
 		x := randomCanonicalFieldWords(rng)
 		y := randomCanonicalFieldWords(rng)
 		checkMontgomeryBackend(t, x, y)
+	}
+}
+
+func TestMontgomerySquareNCountsMatchFiat(t *testing.T) {
+	counts := []uint64{0, 1, 2, 3, 4, 7, 22, 46, 64, 110}
+	for _, xWords := range montgomeryBackendEdges() {
+		var x Element
+		x.SetNonMontgomeryWords(xWords)
+		for _, count := range counts {
+			want := x.x
+			for range count {
+				fiat.Square(&want, &want)
+			}
+
+			var got fiat.MontgomeryDomainFieldElement
+			squareMontgomeryN(&got, &x.x, count)
+			if got != want {
+				t.Fatalf("square n mismatch for x=%x n=%d: got %x want %x", xWords, count, got, want)
+			}
+			assertCanonicalMontgomery(t, &got)
+
+			got = x.x
+			squareMontgomeryN(&got, &got, count)
+			if got != want {
+				t.Fatalf("square n alias mismatch for x=%x n=%d", xWords, count)
+			}
+		}
+	}
+}
+
+func montgomeryBackendEdges() [][4]uint64 {
+	return [][4]uint64{
+		{},
+		{1},
+		{2},
+		{^uint64(0)},
+		{0, ^uint64(0)},
+		{0, 0, ^uint64(0)},
+		{0, 0, 0, ^uint64(0) - 1},
+		{0xfffffffefffffc2e, ^uint64(0), ^uint64(0), ^uint64(0)},
+		{0x0123456789abcdef, 0xfedcba9876543210, 0x55aa55aa55aa55aa, 0x7fffffffffffffff},
 	}
 }
 

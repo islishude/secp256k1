@@ -165,30 +165,42 @@ make fuzz-smoke
 make ct-smoke
 ```
 
-On ARM64, an experimental Montgomery arithmetic and constant-time fixed-base
-backend can be enabled explicitly for testing and benchmarking:
+On ARM64 or AMD64, experimental assembly backends can be enabled explicitly
+for testing and benchmarking:
 
 ```sh
 make test-arm64-asm
 make perf-check-arm64
+make test-amd64-asm
+make perf-check-amd64
+make amd64-asm-audit
 ```
 
 The backend is selected with the `secp256k1_asm` build tag. It is not enabled
-by default and must receive independent arithmetic, ABI, and constant-time
-review before any default-enable change.
+by default. The AMD64 backend uses cached CPUID ADX+BMI2 detection and falls
+back to fiat arithmetic when either feature is absent; it does not infer ADX
+support from `GOAMD64`. Both backends must receive independent arithmetic,
+ABI, and constant-time review before any default-enable change.
 
 The latest retained ARM64 measurements and security gates are recorded in
 [`docs/perf/20260711-arm64-field-mul.md`](docs/perf/20260711-arm64-field-mul.md).
+The AMD64 avo implementation, retained/rejected candidates, and v1/v3 gates
+are recorded in
+[`docs/perf/20260714-amd64-avo.md`](docs/perf/20260714-amd64-avo.md).
 
 Regenerate low-level generated code:
 
 ```sh
 go generate ./internal/fiat
 go generate ./internal/addchain
+make generate-asm
+make check-asm-module
 ```
 
 Generation uses the Docker image `ghcr.io/islishude/fiat-crypto-go-tool`. See
 `internal/fiat/README.md` and `internal/addchain/README.md` for details.
+AMD64 assembly generation uses the separately pinned `asm` module, so avo and
+its generator-only dependencies do not enter the root module.
 
 ## Security Notes
 

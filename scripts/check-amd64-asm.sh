@@ -48,3 +48,31 @@ if grep -E '^[[:space:]]*J[A-Z]+[[:space:]]' "${square_n_source}" | grep -Ev '^[
   echo "SquareN contains a branch other than its public loop control" >&2
   exit 1
 fi
+
+# Go's portable objdump does not decode ADX opcodes on every host toolchain.
+# On the native Linux CI runner, also retain and validate GNU objdump output.
+if command -v objdump >/dev/null && objdump --version | grep -q 'GNU objdump'; then
+  native_disassembly="${output_dir}/field-amd64.gnu-objdump.txt"
+  : >"${native_disassembly}"
+  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm squareMontgomeryNADXAsm mulByB3MontgomeryADXAsm; do
+    symbol_dump="${output_dir}/${symbol}.gnu-objdump.txt"
+    objdump -d --disassemble="github.com/islishude/secp256k1/internal/field.${symbol}.abi0" \
+      "${binary}" >"${symbol_dump}"
+    cat "${symbol_dump}" >>"${native_disassembly}"
+  done
+
+  grep -Eiq '[[:space:]]mulxq?[[:space:]]' "${native_disassembly}"
+  grep -Eiq '[[:space:]]adcxq?[[:space:]]' "${native_disassembly}"
+  grep -Eiq '[[:space:]]adoxq?[[:space:]]' "${native_disassembly}"
+  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm mulByB3MontgomeryADXAsm; do
+    if grep -Eiq '[[:space:]]j[a-z]+[[:space:]]' "${output_dir}/${symbol}.gnu-objdump.txt"; then
+      echo "native disassembly for ${symbol} contains a branch" >&2
+      exit 1
+    fi
+  done
+  if grep -Ei '[[:space:]]j[a-z]+[[:space:]]' "${output_dir}/squareMontgomeryNADXAsm.gnu-objdump.txt" \
+    | grep -Eiv '[[:space:]]j(e|ne)[[:space:]]'; then
+    echo "native SquareN disassembly contains a branch other than public loop control" >&2
+    exit 1
+  fi
+fi
