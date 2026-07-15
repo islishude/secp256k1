@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -58,6 +59,39 @@ func TestFinalGate(t *testing.T) {
 	candidate["BenchmarkPublicKeyDerive"].nsPerOp[0] = 102
 	if err := checkGate("final", baseline, candidate); err == nil {
 		t.Fatal("expected regression failure")
+	}
+}
+
+func TestPairedFinalGateHandlesBimodalRunnerSamples(t *testing.T) {
+	baseline := map[string]*samples{}
+	candidate := map[string]*samples{}
+	all := append([]string{"BenchmarkSignRecoverable", "BenchmarkVerifyHotPublicKey"}, finalNoRegression...)
+	for _, name := range all {
+		baseline[name] = benchmarkSeries(100, 100, 100, 100, 100, 100, 100, 100, 100, 100)
+		candidate[name] = benchmarkSeries(100, 100, 100, 100, 100, 100, 100, 100, 100, 100)
+	}
+	candidate["BenchmarkSignRecoverable"] = benchmarkSeries(80, 80, 80, 80, 80, 80, 80, 80, 80, 80)
+	baseline["BenchmarkVerifyHotPublicKey"] = benchmarkSeries(27739, 23760, 23749, 27720, 23815, 23747, 23738, 27740, 23744, 27301)
+	candidate["BenchmarkVerifyHotPublicKey"] = benchmarkSeries(21541, 21967, 24646, 24827, 24832, 21264, 24800, 21254, 21255, 21258)
+
+	if err := checkGate("final", baseline, candidate); err == nil {
+		t.Fatal("independent-median gate unexpectedly passed bimodal samples")
+	}
+	if err := checkGate("final-paired", baseline, candidate); err != nil {
+		t.Fatal(err)
+	}
+	candidate["BenchmarkVerifyHotPublicKey"].nsPerOp = candidate["BenchmarkVerifyHotPublicKey"].nsPerOp[:9]
+	if err := checkGate("final-paired", baseline, candidate); err == nil {
+		t.Fatal("expected mismatched paired sample count failure")
+	}
+}
+
+func benchmarkSeries(values ...float64) *samples {
+	zeroes := make([]float64, len(values))
+	return &samples{
+		nsPerOp:     values,
+		bytesPerOp:  slices.Clone(zeroes),
+		allocsPerOp: zeroes,
 	}
 }
 

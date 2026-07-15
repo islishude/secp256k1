@@ -21,10 +21,10 @@ type samples struct {
 }
 
 func main() {
-	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, w6, or final")
+	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, w6, final, or final-paired")
 	flag.Parse()
 	if flag.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|w6|final] <baseline.txt> <candidate.txt>")
+		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|w6|final|final-paired] <baseline.txt> <candidate.txt>")
 		os.Exit(2)
 	}
 	baseline, err := readBenchmarks(flag.Arg(0))
@@ -56,6 +56,11 @@ func main() {
 			name, oldMedian, newMedian, delta,
 			median(candidate[name].bytesPerOp), median(candidate[name].allocsPerOp),
 		)
+	}
+	if *gate == "final-paired" {
+		if err := printPairedFinalSummary(baseline, candidate); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	if err := checkGate(*gate, baseline, candidate); err != nil {
@@ -151,6 +156,8 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 			"BenchmarkSignCompact",
 			"BenchmarkPublicKeyDerive",
 		}
+	case "final-paired":
+		return checkPairedFinalGate(baseline, candidate)
 	default:
 		return fmt.Errorf("unknown gate %q", gate)
 	}
@@ -180,6 +187,87 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 		}
 	}
 	return nil
+}
+
+var finalNoRegression = []string{
+	"BenchmarkScalarBaseMultProjective",
+	"BenchmarkSignDigest",
+	"BenchmarkSignRecoverableDigest",
+	"BenchmarkVerifyDigest",
+	"BenchmarkVerifyParseCompressedCold",
+	"BenchmarkVerifyParseUncompressedCold",
+	"BenchmarkRecoverDigest",
+	"BenchmarkSignCompact",
+	"BenchmarkPublicKeyDerive",
+}
+
+func checkPairedFinalGate(baseline, candidate map[string]*samples) error {
+	for _, name := range []string{"BenchmarkSignRecoverable", "BenchmarkVerifyHotPublicKey"} {
+		delta, err := pairedMedianDelta(name, baseline, candidate)
+		if err != nil {
+			return err
+		}
+		improvement := -delta
+		if improvement+1e-9 < 10 {
+			return fmt.Errorf("%s paired median improved %.2f%%, requires at least 10.00%%", name, improvement)
+		}
+		if !allZero(baseline[name].bytesPerOp) || !allZero(candidate[name].bytesPerOp) ||
+			!allZero(baseline[name].allocsPerOp) || !allZero(candidate[name].allocsPerOp) {
+			return fmt.Errorf("%s must remain 0 B/op and 0 allocs/op", name)
+		}
+	}
+	for _, name := range finalNoRegression {
+		delta, err := pairedMedianDelta(name, baseline, candidate)
+		if err != nil {
+			return err
+		}
+		if delta > 1+1e-9 {
+			return fmt.Errorf("%s paired median regressed %.2f%%, maximum is 1.00%%", name, delta)
+		}
+	}
+	return nil
+}
+
+func printPairedFinalSummary(baseline, candidate map[string]*samples) error {
+	fmt.Println()
+	fmt.Printf("%-52s %12s\n", "Paired final-gate benchmark", "median delta")
+	names := append([]string{"BenchmarkSignRecoverable", "BenchmarkVerifyHotPublicKey"}, finalNoRegression...)
+	for _, name := range names {
+		delta, err := pairedMedianDelta(name, baseline, candidate)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("%-52s %+11.2f%%\n", name, delta)
+	}
+	return nil
+}
+
+func pairedMedianDelta(name string, baseline, candidate map[string]*samples) (float64, error) {
+	old := baseline[name]
+	next := candidate[name]
+	if old == nil || next == nil || len(old.nsPerOp) == 0 || len(next.nsPerOp) == 0 {
+		return 0, fmt.Errorf("required benchmark %s is missing", name)
+	}
+	if len(old.nsPerOp) != len(next.nsPerOp) {
+		return 0, fmt.Errorf("required benchmark %s has %d baseline samples and %d candidate samples", name, len(old.nsPerOp), len(next.nsPerOp))
+	}
+	deltas := make([]float64, len(old.nsPerOp))
+	for i := range old.nsPerOp {
+		if old.nsPerOp[i] == 0 {
+			return 0, fmt.Errorf("required benchmark %s has a zero baseline sample", name)
+		}
+		deltas[i] = (next.nsPerOp[i]/old.nsPerOp[i] - 1) * 100
+	}
+	return median(deltas), nil
+}
+
+func allZero(values []float64) bool {
+	for _, value := range values {
+		if value != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func checkKernelGate(baseline, candidate map[string]*samples) error {

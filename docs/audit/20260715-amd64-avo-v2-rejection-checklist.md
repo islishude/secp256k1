@@ -70,8 +70,11 @@ Status: candidate rejection evidence complete; final cleanup validation and inde
   and race tests, field fuzz, constant-time smoke, native Windows, Linux
   disassembly, and Darwin cross-builds to pass.
 - [ ] Confirm ten-run artifacts retain field/scalar/W5/W6/Add/Sub and root
-  workload medians, CPU information, Go environment, symbols, disassembly,
-  and tagged SignRecoverable/VerifyHotPublicKey CPU profiles.
+  workload medians, CPU information and affinity, Go environment, symbols,
+  disassembly, and tagged SignRecoverable/VerifyHotPublicKey CPU profiles.
+- [ ] Confirm benchmark processes use one pinned CPU and one Go P, and the hard
+  gate takes the median of ten same-iteration default/tagged percentage deltas
+  rather than dividing two independently bimodal medians.
 - [ ] Confirm the final default-to-tagged gate still requires at least 10% for
   SignRecoverable and VerifyHotPublicKey with 0 B/op and 0 allocs/op and no
   tracked end-to-end regression above 1%.

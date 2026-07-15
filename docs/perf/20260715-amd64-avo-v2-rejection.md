@@ -140,9 +140,12 @@ caller. No variable-time secret path was added.
 
 The AMD64 workflow continues to run ten interleaved default/tagged samples for
 v1 and v3 and records field, scalar, W5/W6, Add/Sub, end-to-end workloads, CPU
-features, symbol sizes, disassembly, and tagged signing/verification CPU
-profiles. It keeps the final default-to-tagged double-10% and allocation checks
-as hard gates.
+features, affinity, symbol sizes, disassembly, and tagged
+signing/verification CPU profiles. Benchmark processes are pinned to one CPU
+with one Go P. The hard gate uses the median of the ten paired per-iteration
+deltas, still requiring default-to-tagged double 10%, 0 B/op, 0 allocs/op, and
+at most 1% paired-median regression elsewhere. Independent medians remain in
+the artifact for transparency.
 
 The previously accepted per-kernel and W6 medians remain in the artifact as
 diagnostic reports rather than re-acceptance gates. This avoids invalidating

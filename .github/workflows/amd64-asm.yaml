@@ -160,6 +160,7 @@ jobs:
           set -euo pipefail
           mkdir -p "${RUNNER_TEMP}/amd64-bench"
           lscpu >"${RUNNER_TEMP}/amd64-bench/lscpu.txt"
+          taskset -pc $$ >"${RUNNER_TEMP}/amd64-bench/affinity.txt"
           go env >"${RUNNER_TEMP}/amd64-bench/go-env.txt"
           go test -v -count=1 -tags=secp256k1_asm -run TestAMD64FeatureDispatch ./internal/field \
             | tee "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
@@ -188,13 +189,13 @@ jobs:
             if [[ "${mode}" == tagged ]]; then
               tags=(-tags=secp256k1_asm)
             fi
-            go test "${tags[@]}" -run '^$' \
+            GOMAXPROCS=1 taskset -c 0 go test "${tags[@]}" -run '^$' \
               -bench '^Benchmark(SignDigest|SignRecoverableDigest|VerifyDigest|RecoverDigest|VerifyHotPublicKey|VerifyParseCompressedCold|VerifyParseUncompressedCold|SignCompact|SignRecoverable|PublicKeyDerive|ScalarInv|ScalarInvVartime|ScalarBaseMultProjective)$' \
               -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${mode}.txt"
-            go test "${tags[@]}" -run '^$' \
+            GOMAXPROCS=1 taskset -c 0 go test "${tags[@]}" -run '^$' \
               -bench '^BenchmarkField(Add|Sub|Mul|MulByB3|Square|SquareN)$' \
               -benchmem -benchtime=500ms -count=1 ./internal/field >>"${output}/field-${mode}.txt"
-            go test "${tags[@]}" -run '^$' \
+            GOMAXPROCS=1 taskset -c 0 go test "${tags[@]}" -run '^$' \
               -bench '^BenchmarkScalar(Mul|Square|SquareN|Inv)$' \
               -benchmem -benchtime=500ms -count=1 ./internal/scalar >>"${output}/scalar-${mode}.txt"
           }
@@ -202,13 +203,13 @@ jobs:
           run_kernel() {
             local kernel="$1"
             SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench,secp256k1_amd64_w5_bench' -run '^$' \
+              GOMAXPROCS=1 taskset -c 0 go test -tags='secp256k1_asm,secp256k1_amd64_bench,secp256k1_amd64_w5_bench' -run '^$' \
                 -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
                 -benchmem -benchtime=500ms -count=1 . >>"${output}/root-${kernel}.txt"
           }
 
           run_w5() {
-            go test -tags='secp256k1_asm,secp256k1_amd64_w5_bench' -run '^$' \
+            GOMAXPROCS=1 taskset -c 0 go test -tags='secp256k1_asm,secp256k1_amd64_w5_bench' -run '^$' \
               -bench '^Benchmark(ScalarBaseMultProjective|SignRecoverable|VerifyHotPublicKey)$' \
               -benchmem -benchtime=500ms -count=1 . >>"${output}/root-w5.txt"
           }
@@ -235,7 +236,7 @@ jobs:
           output="${RUNNER_TEMP}/amd64-bench"
           capture_profile() {
             local benchmark="$1"
-            go test -tags=secp256k1_asm -run '^$' \
+            GOMAXPROCS=1 taskset -c 0 go test -tags=secp256k1_asm -run '^$' \
                 -bench "^Benchmark${benchmark}$" -benchtime=3s -count=1 \
                 -cpuprofile="${output}/tagged-${benchmark}.cpu.pprof" . \
                 >"${output}/tagged-${benchmark}.profile.txt"
@@ -262,7 +263,7 @@ jobs:
         if: always()
         run: |
           output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=final "${output}/root-default.txt" "${output}/root-tagged.txt"
+          go run ./cmd/benchcmp -gate=final-paired "${output}/root-default.txt" "${output}/root-tagged.txt"
       - name: Upload raw benchmark data
         if: always()
         uses: actions/upload-artifact@v7
