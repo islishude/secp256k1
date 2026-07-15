@@ -26,13 +26,14 @@ var scalarComplement = [3]uint64{
 }
 
 var (
-	xlimbs = [4]reg.VecPhysical{reg.X0, reg.X1, reg.X2, reg.X3}
-	ylimbs = [4]reg.VecPhysical{reg.X4, reg.X5, reg.X6, reg.X7}
-	invU   = [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	invV   = [4]reg.GPPhysical{reg.R12, reg.R13, reg.R14, reg.R15}
-	invX1  = [4]reg.VecPhysical{reg.X0, reg.X1, reg.X2, reg.X3}
-	invX2  = [4]reg.VecPhysical{reg.X4, reg.X5, reg.X6, reg.X7}
-	invSum = [5]reg.VecPhysical{reg.X8, reg.X9, reg.X10, reg.X11, reg.X12}
+	xlimbs        = [4]reg.VecPhysical{reg.X0, reg.X1, reg.X2, reg.X3}
+	ylimbs        = [4]reg.VecPhysical{reg.X4, reg.X5, reg.X6, reg.X7}
+	squareProduct = [8]reg.VecPhysical{reg.X8, reg.X9, reg.X10, reg.X11, reg.X12, reg.X13, reg.X14, reg.X15}
+	invU          = [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
+	invV          = [4]reg.GPPhysical{reg.R12, reg.R13, reg.R14, reg.R15}
+	invX1         = [4]reg.VecPhysical{reg.X0, reg.X1, reg.X2, reg.X3}
+	invX2         = [4]reg.VecPhysical{reg.X4, reg.X5, reg.X6, reg.X7}
+	invSum        = [5]reg.VecPhysical{reg.X8, reg.X9, reg.X10, reg.X11, reg.X12}
 )
 
 func main() {
@@ -62,7 +63,7 @@ func emitSquare() {
 	Doc("squareMontgomeryADXAsm squares a canonical Montgomery scalar element.")
 
 	emitLoadElement("x", xlimbs)
-	result := emitMontgomeryProduct(xlimbs, xlimbs)
+	result := emitMontgomerySquare(xlimbs)
 	emitStoreResult("out", result)
 	RET()
 }
@@ -76,11 +77,14 @@ func emitSquareN() {
 	Load(Param("n"), reg.RDI)
 	TESTQ(reg.RDI, reg.RDI)
 	JEQ(LabelRef("square_n_store_input"))
+	MOVQ(reg.RDI, reg.X4)
 
 	Label("square_n_loop")
-	result := emitMontgomeryProduct(xlimbs, xlimbs)
+	result := emitMontgomerySquare(xlimbs)
+	MOVQ(reg.X4, reg.RDI)
 	DECQ(reg.RDI)
 	JEQ(LabelRef("square_n_store_result"))
+	MOVQ(reg.RDI, reg.X4)
 	emitMoveResultToLimbs(result, xlimbs)
 	JMP(LabelRef("square_n_loop"))
 
@@ -91,6 +95,113 @@ func emitSquareN() {
 	Label("square_n_store_result")
 	emitStoreResult("out", result)
 	RET()
+}
+
+// emitMontgomerySquare computes x^2*R^-1 mod n. A seven-column Comba square
+// evaluates each off-diagonal product once and adds it twice, reducing the
+// product phase from 16 MULX instructions to 10. The full product is staged in
+// SSE2 registers before a fixed four-step Montgomery reduction runs.
+func emitMontgomerySquare(input [4]reg.VecPhysical) [4]reg.GPPhysical {
+	carry := [3]reg.GPPhysical{reg.R8, reg.R9, reg.R10}
+	for _, r := range carry {
+		XORQ(r, r)
+	}
+	lo, hi := reg.R11, reg.R12
+	zero := reg.R13
+	XORQ(zero, zero)
+
+	for column := 0; column <= 6; column++ {
+		for i := range input {
+			j := column - i
+			if j < i || j < 0 || j >= len(input) {
+				continue
+			}
+
+			MOVQ(input[i], reg.RDX)
+			MOVQ(input[j], reg.RSI)
+			MULXQ(reg.RSI, lo, hi)
+			ADCXQ(lo, carry[0])
+			ADCXQ(hi, carry[1])
+			ADCXQ(zero, carry[2])
+			if i != j {
+				ADOXQ(lo, carry[0])
+				ADOXQ(hi, carry[1])
+				ADOXQ(zero, carry[2])
+			}
+		}
+
+		MOVQ(carry[0], squareProduct[column])
+		carry = [3]reg.GPPhysical{carry[1], carry[2], carry[0]}
+		XORQ(carry[2], carry[2])
+	}
+	MOVQ(carry[0], squareProduct[7])
+
+	return emitMontgomeryReduceFullSquare(squareProduct)
+}
+
+// emitMontgomeryReduceFullSquare reduces an eight-limb square product. For
+// each low limb q = t[k]*c^-1, subtracting q*c and adding q at limb k+4 is
+// exactly addition of q*n because n=2^256-c. The ninth accumulator limb keeps
+// every carry until the final branch-free canonical subtraction.
+func emitMontgomeryReduceFullSquare(product [8]reg.VecPhysical) [4]reg.GPPhysical {
+	acc := [8]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11, reg.R12, reg.R13, reg.R14, reg.R15}
+	for i := range acc {
+		MOVQ(product[i], acc[i])
+	}
+	high := reg.RDI
+	XORQ(high, high)
+
+	for k := range 4 {
+		MOVQ(acc[k], reg.RDX)
+		MOVQ(U64(scalarK0), reg.RAX)
+		IMULQ(reg.RAX, reg.RDX)
+
+		// q*c occupies four limbs. The source and high destination of the
+		// second MULX intentionally overlap; MULX reads its source first.
+		MOVQ(U64(scalarComplement[0]), reg.RSI)
+		MULXQ(reg.RSI, reg.RAX, reg.RBX)
+		MOVQ(U64(scalarComplement[1]), reg.RSI)
+		MULXQ(reg.RSI, reg.RCX, reg.RSI)
+		ADDQ(reg.RBX, reg.RCX)
+		ADCQ(U8(0), reg.RSI)
+		MOVQ(reg.RDX, reg.RBX)
+		ADDQ(reg.RSI, reg.RBX)
+		MOVQ(U64(0), reg.RSI)
+		ADCQ(U8(0), reg.RSI)
+
+		SUBQ(reg.RAX, acc[k])
+		SBBQ(reg.RCX, acc[k+1])
+		SBBQ(reg.RBX, acc[k+2])
+		SBBQ(reg.RSI, acc[k+3])
+		for i := k + 4; i < len(acc); i++ {
+			SBBQ(U8(0), acc[i])
+		}
+		SBBQ(U8(0), high)
+
+		ADDQ(reg.RDX, acc[k+4])
+		for i := k + 5; i < len(acc); i++ {
+			ADCQ(U8(0), acc[i])
+		}
+		ADCQ(U8(0), high)
+	}
+
+	value := [4]reg.GPPhysical{acc[4], acc[5], acc[6], acc[7]}
+	result := [4]reg.GPPhysical{acc[0], acc[1], acc[2], acc[3]}
+	for i := range value {
+		MOVQ(value[i], result[i])
+	}
+	MOVQ(U64(scalarModulus[0]), reg.RSI)
+	SUBQ(reg.RSI, result[0])
+	MOVQ(U64(scalarModulus[1]), reg.RSI)
+	SBBQ(reg.RSI, result[1])
+	SBBQ(I8(-2), result[2])
+	SBBQ(I8(-1), result[3])
+	MOVQ(high, reg.RDX)
+	SBBQ(U8(0), reg.RDX)
+	for i := range result {
+		CMOVQCS(value[i], result[i])
+	}
+	return result
 }
 
 func emitInvVartime() {

@@ -109,6 +109,22 @@ func checkInvVartimeWordsBackend(t *testing.T, index int, input [4]uint64) {
 	if aliased != want {
 		t.Fatalf("aliased InvVartime backend mismatch at input %d: got %x want %x", index, aliased, want)
 	}
+
+	var inputElement, gotElement, constantTime, product Element
+	inputElement.SetWords(input)
+	gotElement.SetWords(got)
+	constantTime.Inv(&inputElement)
+	if !gotElement.Equal(&constantTime) {
+		t.Fatalf("InvVartime/Inv mismatch at input %d: got %x want %x", index, gotElement.Bytes(), constantTime.Bytes())
+	}
+	if input != [4]uint64{} {
+		var one Element
+		one.SetOne()
+		product.Mul(&inputElement, &gotElement)
+		if !product.Equal(&one) {
+			t.Fatalf("input * InvVartime(input) != 1 at input %d: got %x", index, product.Bytes())
+		}
+	}
 }
 
 func BenchmarkScalarInvVartime(b *testing.B) {
