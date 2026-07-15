@@ -10,7 +10,11 @@ Accepted baseline run: [GitHub Actions 29345965487](https://github.com/islishude
 
 Terminal experimental candidate: `d4dc372`
 
-Final cleanup validation: pending
+Cleanup commit: `b6a2a91`
+
+Benchmark-method commit: `2dfad4d`
+
+Final cleanup run: [GitHub Actions 29388877833](https://github.com/islishude/secp256k1/actions/runs/29388877833)
 
 ## Decision
 
@@ -30,6 +34,29 @@ public-input inversion.
 The accepted AMD64 backend remains unchanged: opt-in `secp256k1_asm`, explicit
 ADX+BMI2 CPUID dispatch, base-field Mul/Square, and the fixed-length SSE2 W6
 selector. Default builds remain pure Go.
+
+## Final cleanup validation
+
+The final cleanup run passed every quality, correctness, platform, assembly,
+and performance job. Both performance jobs ran on Intel Xeon Platinum 8370C
+CPUs, reported ADX+BMI2, allowed CPUs 0-3, and pinned each benchmark process to
+CPU 0 with one Go P.
+
+Independent medians remain useful descriptive values; the hard gate is the
+median of the ten same-iteration percentage deltas. Negative values are
+faster.
+
+| GOAMD64 | Benchmark | Default median | Tagged median | Independent delta | Paired median delta | Allocations | Gate |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| v1 | SignRecoverable | 46,263.0 ns | 36,897.5 ns | -20.24% | -20.26% | 0 B / 0 | pass: >=10% |
+| v1 | VerifyHotPublicKey | 36,357.5 ns | 31,575.5 ns | -13.15% | -13.14% | 0 B / 0 | pass: >=10% |
+| v3 | SignRecoverable | 46,116.5 ns | 36,641.5 ns | -20.55% | -20.54% | 0 B / 0 | pass: >=10% |
+| v3 | VerifyHotPublicKey | 36,026.0 ns | 31,412.5 ns | -12.81% | -12.80% | 0 B / 0 | pass: >=10% |
+
+Every other gate-tracked paired median improved. The narrowest non-gate gain
+was 11.69%, so no end-to-end workload approached the 1% regression limit. Native
+Linux disassembly artifacts at v1 and v3 contain retained field Mul/Square and
+W6 evidence and contain none of the six rejected v2 symbols.
 
 ## Measurement method
 
@@ -153,6 +180,14 @@ the immutable accepted decision when GitHub assigns a different CPU: in run
 29381506099 the Intel Xeon Platinum 8573C measured retained FieldMul at 13.10%
 while the complete accepted backend still comfortably passed both final
 end-to-end gates. The original acceptance evidence remains run 29345965487.
+
+The first cleanup run,
+[29382922561](https://github.com/islishude/secp256k1/actions/runs/29382922561),
+made the statistical issue concrete: v3 verification had bimodal default and
+tagged samples, so dividing two independently selected medians reported 8.55%,
+while the median of the ten paired deltas was 10.45%. The paired test uses the
+actual samples from that run as a regression fixture; it does not lower the
+10% requirement.
 
 No width-8/width-7 change, W7 table, fused point arithmetic, AVX2 selector,
 public API change, RFC6979 change, or signature encoding change was made.

@@ -4,7 +4,7 @@ Date: 2026-07-15
 
 Scope: v2 scalar Montgomery, public `InvVartime`, and base-field Add/Sub experiments; final cleanup back to accepted `4ac5bc4` production behavior
 
-Status: candidate rejection evidence complete; final cleanup validation and independent reviewer sign-off pending
+Status: candidate rejection and final cleanup evidence complete; independent reviewer sign-off pending
 
 ## Accepted baseline isolation
 
@@ -97,4 +97,6 @@ Status: candidate rejection evidence complete; final cleanup validation and inde
 
 Evidence and rationale are recorded in
 [`../perf/20260715-amd64-avo-v2-rejection.md`](../perf/20260715-amd64-avo-v2-rejection.md).
+Final cleanup validation is recorded in
+[GitHub Actions run 29388877833](https://github.com/islishude/secp256k1/actions/runs/29388877833).
 Independent review remains required before changing the accepted backend.
