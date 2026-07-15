@@ -4,16 +4,6 @@
 
 package field
 
-// addMontgomeryADXAsm adds two canonical Montgomery field elements.
-//
-//go:noescape
-func addMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
-
-// subMontgomeryADXAsm subtracts two canonical Montgomery field elements.
-//
-//go:noescape
-func subMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
-
 // mulMontgomeryADXAsm multiplies two canonical Montgomery field elements.
 //
 //go:noescape

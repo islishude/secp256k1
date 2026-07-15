@@ -9,10 +9,6 @@ binary="${output_dir}/field-amd64.test"
 disassembly="${output_dir}/field-amd64.objdump.txt"
 symbols="${output_dir}/field-amd64.symbols.txt"
 source_asm="${repo_dir}/internal/field/montgomery_amd64.s"
-scalar_binary="${output_dir}/scalar-amd64.test"
-scalar_disassembly="${output_dir}/scalar-amd64.objdump.txt"
-scalar_symbols="${output_dir}/scalar-amd64.symbols.txt"
-scalar_source_asm="${repo_dir}/internal/scalar/montgomery_amd64.s"
 selector_binary="${output_dir}/root-amd64.test"
 selector_disassembly="${output_dir}/w6-amd64.objdump.txt"
 selector_symbols="${output_dir}/w6-amd64.symbols.txt"
@@ -25,46 +21,12 @@ GOOS=linux GOARCH=amd64 GOAMD64="${GOAMD64:-v1}" \
 go tool objdump -s 'github.com/islishude/secp256k1/internal/field\..*ADXAsm' "${binary}" >"${disassembly}"
 go tool nm -size -sort address "${binary}" >"${symbols}"
 
-for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
   grep -q "${symbol}" "${symbols}"
 done
-
-GOOS=linux GOARCH=amd64 GOAMD64="${GOAMD64:-v1}" \
-  go test -c -tags=secp256k1_asm -o "${scalar_binary}" ./internal/scalar
-go tool objdump -s 'github.com/islishude/secp256k1/internal/scalar\..*ADXAsm' \
-  "${scalar_binary}" >"${scalar_disassembly}"
-go tool nm -size -sort address "${scalar_binary}" >"${scalar_symbols}"
-
-for symbol in invVartimeWordsADXAsm; do
-  grep -q "${symbol}" "${scalar_symbols}"
-done
-grep -Eq '^[[:space:]]*MULXQ[[:space:]]' "${scalar_source_asm}"
-grep -Eq '^[[:space:]]*ADCXQ[[:space:]]' "${scalar_source_asm}"
-grep -Eq '^[[:space:]]*ADOXQ[[:space:]]' "${scalar_source_asm}"
-
-scalar_inv_source="${output_dir}/scalar-invVartimeWordsADXAsm.source.txt"
-awk '
-  /^TEXT ·invVartimeWordsADXAsm\(/ { active = 1 }
-  active && /^TEXT ·/ && !/^TEXT ·invVartimeWordsADXAsm\(/ { exit }
-  active { print }
-' "${scalar_source_asm}" >"${scalar_inv_source}"
-head -n 1 "${scalar_inv_source}" | grep -Fq 'TEXT ·invVartimeWordsADXAsm(SB), NOSPLIT, $0-'
-grep -Eq '^[[:space:]]*BSFQ[[:space:]]' "${scalar_inv_source}"
-grep -Eq '^[[:space:]]*SHRXQ[[:space:]]' "${scalar_inv_source}"
-grep -Eq '^[[:space:]]*SHLXQ[[:space:]]' "${scalar_inv_source}"
-if grep -Eq '^[[:space:]]*JMP[[:space:]]+\([^)]*\)' "${scalar_inv_source}"; then
-  echo 'public InvVartime contains an indirect branch' >&2
-  exit 1
-fi
 for rejected in squareMontgomeryNADXAsm mulByB3MontgomeryADXAsm; do
   if grep -q "${rejected}" "${symbols}"; then
     echo "rejected AMD64 kernel ${rejected} is still linked" >&2
-    exit 1
-  fi
-done
-for rejected in mulMontgomeryADXAsm squareMontgomeryADXAsm squareMontgomeryNADXAsm; do
-  if grep -q "${rejected}" "${scalar_symbols}"; then
-    echo "rejected scalar AMD64 kernel ${rejected} is still linked" >&2
     exit 1
   fi
 done
@@ -73,7 +35,7 @@ grep -Eq '^[[:space:]]*MULXQ[[:space:]]' "${source_asm}"
 grep -Eq '^[[:space:]]*ADCXQ[[:space:]]' "${source_asm}"
 grep -Eq '^[[:space:]]*ADOXQ[[:space:]]' "${source_asm}"
 
-for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
   symbol_source="${output_dir}/${symbol}.source.txt"
   awk -v symbol="${symbol}" '
     $0 ~ "^TEXT ·" symbol "\\(" { active = 1 }
@@ -96,6 +58,18 @@ go tool objdump -s 'github.com/islishude/secp256k1\.selectGeneratorW6' \
   "${selector_binary}" >"${selector_disassembly}"
 go tool nm -size -sort address "${selector_binary}" >"${selector_symbols}"
 grep -q 'selectGeneratorW6' "${selector_symbols}"
+for rejected in \
+  'internal/field.addMontgomeryADXAsm' \
+  'internal/field.subMontgomeryADXAsm' \
+  'internal/scalar.mulMontgomeryADXAsm' \
+  'internal/scalar.squareMontgomeryADXAsm' \
+  'internal/scalar.squareMontgomeryNADXAsm' \
+  'internal/scalar.invVartimeWordsADXAsm'; do
+  if grep -q "${rejected}" "${selector_symbols}"; then
+    echo "rejected v2 AMD64 kernel ${rejected} is still linked" >&2
+    exit 1
+  fi
+done
 
 selector_source="${output_dir}/selectGeneratorW6.source.txt"
 awk '
@@ -116,28 +90,16 @@ fi
 if command -v objdump >/dev/null && objdump --version | grep -q 'GNU objdump'; then
   native_disassembly="${output_dir}/field-amd64.gnu-objdump.txt"
   : >"${native_disassembly}"
-  for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
     symbol_dump="${output_dir}/${symbol}.gnu-objdump.txt"
     objdump -d --disassemble="github.com/islishude/secp256k1/internal/field.${symbol}.abi0" \
       "${binary}" >"${symbol_dump}"
     cat "${symbol_dump}" >>"${native_disassembly}"
   done
-
-  scalar_native_disassembly="${output_dir}/scalar-amd64.gnu-objdump.txt"
-  : >"${scalar_native_disassembly}"
-  for symbol in invVartimeWordsADXAsm; do
-    symbol_dump="${output_dir}/scalar-${symbol}.gnu-objdump.txt"
-    objdump -d --disassemble="github.com/islishude/secp256k1/internal/scalar.${symbol}.abi0" \
-      "${scalar_binary}" >"${symbol_dump}"
-    cat "${symbol_dump}" >>"${scalar_native_disassembly}"
-  done
-  grep -Eiq '[[:space:]]mulxq?[[:space:]]' "${scalar_native_disassembly}"
-  grep -Eiq '[[:space:]]adcxq?[[:space:]]' "${scalar_native_disassembly}"
-  grep -Eiq '[[:space:]]adoxq?[[:space:]]' "${scalar_native_disassembly}"
   grep -Eiq '[[:space:]]mulxq?[[:space:]]' "${native_disassembly}"
   grep -Eiq '[[:space:]]adcxq?[[:space:]]' "${native_disassembly}"
   grep -Eiq '[[:space:]]adoxq?[[:space:]]' "${native_disassembly}"
-  for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
     if grep -Eiq '[[:space:]]j[a-z]+[[:space:]]' "${output_dir}/${symbol}.gnu-objdump.txt"; then
       echo "native disassembly for ${symbol} contains a branch" >&2
       exit 1

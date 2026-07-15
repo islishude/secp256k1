@@ -1,0 +1,73 @@
+# AMD64 avo v2 compact rejection transcript
+# Date: 2026-07-15
+# Branch: codex/amd64-avo-asm-v2
+# Accepted baseline: 4ac5bc4
+# Accepted run: https://github.com/islishude/secp256k1/actions/runs/29345965487
+# Terminal experimental candidate: d4dc372
+# Terminal experimental run: https://github.com/islishude/secp256k1/actions/runs/29381506099
+# Method: accepted/candidate alternated for 10 samples on the same runner
+# Delta convention: negative is faster, positive is slower
+# Final decision: delete every v2 production candidate
+
+[runs]
+29375703485 initial scalar CIOS
+29377187861 XMM complement schedule and full public inversion
+29378465358 GPR complement schedule
+29379875980 dedicated scalar Comba square
+29381506099 public inversion plus field Add/Sub
+
+[initial-scalar-CIOS]
+GOAMD64  Mul      Square   SquareN  ScalarInv  Sign     Verify   decision
+v1       -18.86%  -14.71%   -7.61%   -11.62%  -3.05%   -0.09%  reject group
+v3       -27.29%  -15.22%   -7.71%   -11.39%  -2.97%   -0.13%  reject group
+
+[GPR-scalar-CIOS]
+GOAMD64  Mul      Square   SquareN  ScalarInv  Sign     Verify   decision
+v1       -17.43%  -15.71%   -7.40%   -11.56%  -2.87%   +0.04%  reject group
+v3       -20.03%  -18.98%   -5.30%    -9.90%  -2.27%   -0.11%  reject group
+
+[dedicated-Comba-square]
+GOAMD64  Mul      Square   SquareN  ScalarInv  Sign     decision
+v1       -17.30%   -2.84%   +9.42%    +2.78%  +0.65%   reject group
+v3        -7.80%  +35.05%  +17.04%    +8.33%  -0.19%   reject group
+
+[public-InvVartime]
+GOAMD64  Inv-accepted  Inv-candidate  Inv-delta  Verify-delta  Sign-delta  local-gate
+v1          5426.5        2586.0       -52.34%       -8.59%      +0.21%   pass
+v3          3876.5        2081.0       -46.32%       -6.72%      +0.14%   pass
+
+[field-Add-Sub]
+GOAMD64  Add-accepted  Add-candidate  Add-delta  Sub-accepted  Sub-candidate  Sub-delta  gate
+v1              6.25           5.00    -19.99%          3.82           4.38   +14.57%  fail Sub
+v3              4.12           3.25    -21.18%          2.53           2.91   +15.00%  fail Sub
+
+[terminal-accepted-to-v2]
+GOAMD64  benchmark                 accepted-ns  candidate-ns  delta    allocs  gate
+v1       SignRecoverable              35497.0       34830.5  -1.88%   0/0     FAIL <3%
+v1       VerifyHotPublicKey           32633.5       29367.0 -10.01%   0/0     pass
+v3       SignRecoverable              28737.5       28336.0  -1.40%   0/0     FAIL <3%
+v3       VerifyHotPublicKey           25488.5       23701.0  -7.01%   0/0     pass
+
+[terminal-default-to-v2]
+GOAMD64  SignRecoverable  VerifyHotPublicKey
+v1               -25.10%              -23.36%
+v3               -21.04%              -16.02%
+# This does not override the failed accepted-to-v2 double-3% requirement.
+
+[rejected-symbol-sizes-during-experiment]
+field.addMontgomeryADXAsm.abi0                  137 bytes
+field.subMontgomeryADXAsm.abi0                  101 bytes
+scalar.invVartimeWordsADXAsm.abi0              1678 bytes
+# Final binaries must contain none of these symbols and none of the rejected
+# scalar Mul/Square/SquareN symbols.
+
+[final-production-state]
+PASS asm and internal production files match accepted baseline 4ac5bc4
+PASS accepted field Mul/Square and W6 remain unchanged
+PASS scalar Montgomery generator, assembly, stubs, routing, tests deleted
+PASS public InvVartime assembly generator, assembly, stubs, routing deleted
+PASS field Add/Sub generator, assembly, stubs, routing, selectors deleted
+PASS default build remains pure Go
+PASS root module remains zero third-party dependencies
+PASS public API, RFC6979, signature encoding, W6 table, comb width unchanged
+PENDING final cleanup CI run

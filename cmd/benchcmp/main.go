@@ -21,10 +21,10 @@ type samples struct {
 }
 
 func main() {
-	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, w6, final, v2-invvartime, v2-field-micro, v2-field-e2e, or v2-final")
+	gate := flag.String("gate", "", "optional acceptance gate: field, kernel, w6, or final")
 	flag.Parse()
 	if flag.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|w6|final|v2-invvartime|v2-field-micro|v2-field-e2e|v2-final] <baseline.txt> <candidate.txt>")
+		fmt.Fprintln(os.Stderr, "usage: benchcmp [-gate=field|kernel|w6|final] <baseline.txt> <candidate.txt>")
 		os.Exit(2)
 	}
 	baseline, err := readBenchmarks(flag.Arg(0))
@@ -139,40 +139,6 @@ func checkGate(gate string, baseline, candidate map[string]*samples) error {
 		improvements = map[string]float64{
 			"BenchmarkSignRecoverable":    10,
 			"BenchmarkVerifyHotPublicKey": 10,
-		}
-		noRegression = []string{
-			"BenchmarkScalarBaseMultProjective",
-			"BenchmarkSignDigest",
-			"BenchmarkSignRecoverableDigest",
-			"BenchmarkVerifyDigest",
-			"BenchmarkVerifyParseCompressedCold",
-			"BenchmarkVerifyParseUncompressedCold",
-			"BenchmarkRecoverDigest",
-			"BenchmarkSignCompact",
-			"BenchmarkPublicKeyDerive",
-		}
-	case "v2-field-micro":
-		improvements = map[string]float64{
-			"BenchmarkFieldAdd": 10,
-			"BenchmarkFieldSub": 10,
-		}
-	case "v2-field-e2e":
-		return checkKernelGate(baseline, candidate)
-	case "v2-invvartime":
-		improvements = map[string]float64{
-			"BenchmarkScalarInvVartime":   15,
-			"BenchmarkVerifyHotPublicKey": 3,
-		}
-		noRegression = []string{
-			"BenchmarkSignRecoverable",
-			"BenchmarkRecoverDigest",
-			"BenchmarkVerifyParseCompressedCold",
-			"BenchmarkVerifyParseUncompressedCold",
-		}
-	case "v2-final":
-		improvements = map[string]float64{
-			"BenchmarkSignRecoverable":    3,
-			"BenchmarkVerifyHotPublicKey": 3,
 		}
 		noRegression = []string{
 			"BenchmarkScalarBaseMultProjective",

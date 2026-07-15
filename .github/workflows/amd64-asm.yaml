@@ -86,8 +86,6 @@ jobs:
         run: go test -v -race -count=1 -tags=secp256k1_asm ./...
       - name: Fuzz tagged base-field arithmetic
         run: go test -tags=secp256k1_asm -run '^$' -fuzz=FuzzElementArithmetic -fuzztime=10s ./internal/field
-      - name: Fuzz tagged scalar arithmetic
-        run: go test -tags=secp256k1_asm -run '^$' -fuzz=FuzzElementArithmetic -fuzztime=10s ./internal/scalar
       - name: Constant-time smoke
         env:
           SECP256K1_CT_TEST: "1"
@@ -165,21 +163,11 @@ jobs:
           go env >"${RUNNER_TEMP}/amd64-bench/go-env.txt"
           go test -v -count=1 -tags=secp256k1_asm -run TestAMD64FeatureDispatch ./internal/field \
             | tee "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
-          go test -v -count=1 -tags=secp256k1_asm -run TestAMD64ScalarFeatureDispatch ./internal/scalar \
-            | tee -a "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
           grep -q 'CPUID ADX+BMI2=true' "${RUNNER_TEMP}/amd64-bench/cpuid.txt"
           for kernel in none mul square; do
             SECP256K1_AMD64_BENCH_KERNEL="${kernel}" \
               go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
                 -run '^TestAMD64BenchmarkKernelSelection$' ./internal/field
-          done
-          for kernel in accepted invvartime field-add field-sub 'field-add,field-sub' 'invvartime,field-add,field-sub' all; do
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${kernel}" \
-              go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
-                -run '^TestAMD64V2BenchmarkKernelSelection$' ./internal/scalar
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${kernel}" \
-              go test -count=1 -tags='secp256k1_asm,secp256k1_amd64_bench' \
-                -run '^TestAMD64V2BenchmarkFieldSelection$' ./internal/field
           done
       - name: Interleave default and tagged benchmarks
         run: |
@@ -193,12 +181,6 @@ jobs:
             : >"${output}/root-${kernel}.txt"
           done
           : >"${output}/root-w5.txt"
-          for mode in accepted invvartime field-add field-sub field all; do
-            : >"${output}/root-v2-${mode}.txt"
-          done
-          for mode in accepted field-add field-sub field; do
-            : >"${output}/field-v2-${mode}.txt"
-          done
 
           run_mode() {
             local mode="$1"
@@ -231,33 +213,6 @@ jobs:
               -benchmem -benchtime=500ms -count=1 . >>"${output}/root-w5.txt"
           }
 
-          run_v2_root() {
-            local label="$1"
-            local selection="$2"
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
-                -bench '^Benchmark(SignDigest|SignRecoverableDigest|VerifyDigest|RecoverDigest|VerifyHotPublicKey|VerifyParseCompressedCold|VerifyParseUncompressedCold|SignCompact|SignRecoverable|PublicKeyDerive|ScalarInvVartime|ScalarBaseMultProjective)$' \
-                -benchmem -benchtime=500ms -count=1 . >>"${output}/root-v2-${label}.txt"
-          }
-
-          run_v2_field_kernel() {
-            local label="$1"
-            local selection="$2"
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
-                -bench '^Benchmark(SignRecoverable|VerifyHotPublicKey)$' \
-                -benchmem -benchtime=500ms -count=1 . >>"${output}/root-v2-${label}.txt"
-          }
-
-          run_v2_field() {
-            local label="$1"
-            local selection="$2"
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
-                -bench '^BenchmarkField(Add|Sub)$' \
-                -benchmem -benchtime=500ms -count=1 ./internal/field >>"${output}/field-v2-${label}.txt"
-          }
-
           for iteration in $(seq 1 10); do
             if (( iteration % 2 == 1 )); then
               run_mode default
@@ -268,48 +223,25 @@ jobs:
               run_w5
               run_mode default
             fi
-            v2_labels=(accepted invvartime field all)
-            v2_selections=(accepted invvartime 'field-add,field-sub' 'invvartime,field-add,field-sub')
-            for offset in 0 1 2 3; do
-              index=$(( (iteration + offset - 1) % 4 ))
-              run_v2_root "${v2_labels[index]}" "${v2_selections[index]}"
-            done
-            v2_field_labels=(field-add field-sub)
-            v2_field_selections=(field-add field-sub)
-            for offset in 0 1; do
-              index=$(( (iteration + offset - 1) % 2 ))
-              run_v2_field_kernel "${v2_field_labels[index]}" "${v2_field_selections[index]}"
-            done
-            field_labels=(accepted field-add field-sub field)
-            field_selections=(accepted field-add field-sub 'field-add,field-sub')
-            for offset in 0 1 2 3; do
-              index=$(( (iteration + offset - 1) % 4 ))
-              run_v2_field "${field_labels[index]}" "${field_selections[index]}"
-            done
             kernels=(none mul square)
             for offset in 0 1 2; do
               index=$(( (iteration + offset - 1) % 3 ))
               run_kernel "${kernels[index]}"
             done
           done
-      - name: Capture accepted and v2 CPU profiles
+      - name: Capture tagged CPU profiles
         run: |
           set -euo pipefail
           output="${RUNNER_TEMP}/amd64-bench"
           capture_profile() {
-            local label="$1"
-            local selection="$2"
-            local benchmark="$3"
-            SECP256K1_AMD64_V2_BENCH_KERNEL="${selection}" \
-              go test -tags='secp256k1_asm,secp256k1_amd64_bench' -run '^$' \
+            local benchmark="$1"
+            go test -tags=secp256k1_asm -run '^$' \
                 -bench "^Benchmark${benchmark}$" -benchtime=3s -count=1 \
-                -cpuprofile="${output}/${label}-${benchmark}.cpu.pprof" . \
-                >"${output}/${label}-${benchmark}.profile.txt"
+                -cpuprofile="${output}/tagged-${benchmark}.cpu.pprof" . \
+                >"${output}/tagged-${benchmark}.profile.txt"
           }
-          capture_profile accepted accepted SignRecoverable
-          capture_profile accepted accepted VerifyHotPublicKey
-          capture_profile v2 'invvartime,field-add,field-sub' SignRecoverable
-          capture_profile v2 'invvartime,field-add,field-sub' VerifyHotPublicKey
+          capture_profile SignRecoverable
+          capture_profile VerifyHotPublicKey
       - name: Build median reports
         run: |
           set -euo pipefail
@@ -326,53 +258,6 @@ jobs:
             go run ./cmd/benchcmp "${output}/root-none.txt" "${output}/root-${kernel}.txt" \
               2>&1 | tee "${output}/root-${kernel}-summary.txt"
           done
-          go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-invvartime.txt" \
-            2>&1 | tee "${output}/root-v2-invvartime-summary.txt"
-          go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-field.txt" \
-            2>&1 | tee "${output}/root-v2-field-summary.txt"
-          go run ./cmd/benchcmp "${output}/root-v2-invvartime.txt" "${output}/root-v2-all.txt" \
-            2>&1 | tee "${output}/root-v2-field-stage-summary.txt"
-          go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-all.txt" \
-            2>&1 | tee "${output}/root-v2-final-summary.txt"
-          go run ./cmd/benchcmp "${output}/field-v2-accepted.txt" "${output}/field-v2-field.txt" \
-            2>&1 | tee "${output}/field-v2-summary.txt"
-          for kernel in field-add field-sub; do
-            go run ./cmd/benchcmp "${output}/field-v2-accepted.txt" "${output}/field-v2-${kernel}.txt" \
-              2>&1 | tee "${output}/field-v2-${kernel}-summary.txt"
-            go run ./cmd/benchcmp "${output}/root-v2-accepted.txt" "${output}/root-v2-${kernel}.txt" \
-              2>&1 | tee "${output}/root-v2-${kernel}-summary.txt"
-          done
-      - name: Check per-kernel contribution thresholds
-        run: |
-          set -euo pipefail
-          output="${RUNNER_TEMP}/amd64-bench"
-          for kernel in mul square; do
-            go run ./cmd/benchcmp -gate=kernel "${output}/root-none.txt" "${output}/root-${kernel}.txt"
-          done
-      - name: Check base-field thresholds
-        run: |
-          output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=field "${output}/field-default.txt" "${output}/field-tagged.txt"
-      - name: Check W6 incremental thresholds
-        run: |
-          output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=w6 "${output}/root-w5.txt" "${output}/root-tagged.txt"
-      - name: Check v2 public inversion thresholds
-        if: always()
-        run: |
-          output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=v2-invvartime "${output}/root-v2-accepted.txt" "${output}/root-v2-invvartime.txt"
-      - name: Check v2 field Add/Sub thresholds
-        if: always()
-        run: |
-          output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=v2-field-micro "${output}/field-v2-accepted.txt" "${output}/field-v2-field.txt"
-          go run ./cmd/benchcmp -gate=v2-field-e2e "${output}/root-v2-invvartime.txt" "${output}/root-v2-all.txt"
-      - name: Check v2 final incremental thresholds
-        if: always()
-        run: |
-          output="${RUNNER_TEMP}/amd64-bench"
-          go run ./cmd/benchcmp -gate=v2-final "${output}/root-v2-accepted.txt" "${output}/root-v2-all.txt"
       - name: Check final end-to-end thresholds
         if: always()
         run: |

@@ -10,16 +10,9 @@ var orderWords = [4]uint64{orderLimb3, orderLimb2, orderLimb1, orderLimb0}
 // This function is only suitable for public inputs such as an ECDSA signature
 // scalar during verification or recovery. Secret scalars must use Inv.
 func (z *Element) InvVartime(x *Element) *Element {
-	words := x.Words()
-	var inverse [4]uint64
-	invVartimeWords(&inverse, &words)
-	return z.SetWords(inverse)
-}
-
-func invVartimeWordsGo(input [4]uint64) [4]uint64 {
-	u := input
+	u := x.Words()
 	if wordsZeroVartime(u) {
-		return [4]uint64{}
+		return z.SetZero()
 	}
 	v := orderWords
 	x1 := [4]uint64{1}
@@ -45,9 +38,9 @@ func invVartimeWordsGo(input [4]uint64) [4]uint64 {
 	}
 
 	if wordsOneVartime(u) {
-		return x1
+		return z.SetWords(x1)
 	}
-	return x2
+	return z.SetWords(x2)
 }
 
 func wordsZeroVartime(x [4]uint64) bool {

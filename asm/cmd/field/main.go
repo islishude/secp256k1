@@ -15,75 +15,9 @@ const (
 
 func main() {
 	ConstraintExpr("amd64,secp256k1_asm")
-	emitAdd()
-	emitSub()
 	emitMul()
 	emitSquare()
 	Generate()
-}
-
-func emitAdd() {
-	TEXT("addMontgomeryADXAsm", NOSPLIT, "func(out, x, y *[4]uint64)")
-	Pragma("noescape")
-	Doc("addMontgomeryADXAsm adds two canonical Montgomery field elements.")
-
-	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	y := [4]reg.GPPhysical{reg.R12, reg.R13, reg.R14, reg.R15}
-	emitLoadElement("x", x)
-	emitLoadElement("y", y)
-
-	// Retain the carry above bit 255 so the subtraction chooses x+y-p for
-	// both an ordinary sum >= p and a 257-bit sum.
-	XORQ(reg.RDX, reg.RDX)
-	ADDQ(y[0], x[0])
-	ADCQ(y[1], x[1])
-	ADCQ(y[2], x[2])
-	ADCQ(y[3], x[3])
-	ADCQ(U8(0), reg.RDX)
-
-	// Reuse the staged y registers for the candidate x+y-p. After the final
-	// SBB, CF is set exactly when carry < borrow and the unreduced sum wins.
-	for i := range y {
-		MOVQ(x[i], y[i])
-	}
-	MOVQ(U64(fieldP0), reg.RAX)
-	SUBQ(reg.RAX, y[0])
-	SBBQ(I8(-1), y[1])
-	SBBQ(I8(-1), y[2])
-	SBBQ(I8(-1), y[3])
-	SBBQ(U8(0), reg.RDX)
-	for i := range y {
-		CMOVQCS(x[i], y[i])
-	}
-	emitStoreResult("out", y)
-	RET()
-}
-
-func emitSub() {
-	TEXT("subMontgomeryADXAsm", NOSPLIT, "func(out, x, y *[4]uint64)")
-	Pragma("noescape")
-	Doc("subMontgomeryADXAsm subtracts two canonical Montgomery field elements.")
-
-	x := [4]reg.GPPhysical{reg.R8, reg.R9, reg.R10, reg.R11}
-	y := [4]reg.GPPhysical{reg.R12, reg.R13, reg.R14, reg.R15}
-	emitLoadElement("x", x)
-	emitLoadElement("y", y)
-
-	SUBQ(y[0], x[0])
-	SBBQ(y[1], x[1])
-	SBBQ(y[2], x[2])
-	SBBQ(y[3], x[3])
-	// RAX becomes either zero or -1 from the final borrow. Mask p and add it
-	// back without a branch; p's upper three limbs are all -1.
-	SBBQ(reg.RAX, reg.RAX)
-	MOVQ(U64(fieldP0), reg.RDX)
-	ANDQ(reg.RAX, reg.RDX)
-	ADDQ(reg.RDX, x[0])
-	ADCQ(reg.RAX, x[1])
-	ADCQ(reg.RAX, x[2])
-	ADCQ(reg.RAX, x[3])
-	emitStoreResult("out", x)
-	RET()
 }
 
 func emitMul() {

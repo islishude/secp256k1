@@ -5,7 +5,6 @@ package field
 import (
 	"os"
 
-	"github.com/islishude/secp256k1/internal/amd64bench"
 	"github.com/islishude/secp256k1/internal/cpufeat"
 )
 
@@ -14,12 +13,7 @@ import (
 // Production secp256k1_asm builds cannot observe this environment variable.
 func init() {
 	selection := os.Getenv("SECP256K1_AMD64_BENCH_KERNEL")
-	if selection == "" {
-		amd64Kernels.add = amd64bench.Enabled("field-add") && cpufeat.HasADXAndBMI2
-		amd64Kernels.sub = amd64bench.Enabled("field-sub") && cpufeat.HasADXAndBMI2
-		return
-	}
-	if selection == "all" {
+	if selection == "" || selection == "all" {
 		return
 	}
 	amd64Kernels = amd64KernelSet{}

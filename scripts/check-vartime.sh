@@ -27,11 +27,8 @@ if [[ "${callers}" != "${expected}" ]]; then
 fi
 
 asm_callers="$(list_production_go_files_with 'invVartimeWordsADXAsm\(' | sort)"
-expected_asm_callers="$(printf '%s\n' \
-  ./internal/scalar/montgomery_amd64.go \
-  ./internal/scalar/montgomery_amd64_stub.go | sort)"
-if [[ "${asm_callers}" != "${expected_asm_callers}" ]]; then
-  echo 'public-input inversion assembly escaped its scalar backend wrapper:' >&2
+if [[ -n "${asm_callers}" ]]; then
+  echo 'rejected public-input inversion assembly caller remains:' >&2
   printf '%s\n' "${asm_callers}" >&2
   exit 1
 fi

@@ -1,4 +1,4 @@
-//go:build (!arm64 && !amd64) || !secp256k1_asm
+//go:build !arm64 || !secp256k1_asm
 
 package scalar
 
@@ -9,8 +9,4 @@ func squareMontgomeryN(out, x *fiat.MontgomeryDomainFieldElement, n uint64) {
 	for range n {
 		fiat.Square(out, out)
 	}
-}
-
-func invVartimeWords(out, x *[4]uint64) {
-	*out = invVartimeWordsGo(*x)
 }
