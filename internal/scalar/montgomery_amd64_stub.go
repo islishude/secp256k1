@@ -4,21 +4,6 @@
 
 package scalar
 
-// mulMontgomeryADXAsm multiplies two canonical Montgomery scalar elements.
-//
-//go:noescape
-func mulMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
-
-// squareMontgomeryADXAsm squares a canonical Montgomery scalar element.
-//
-//go:noescape
-func squareMontgomeryADXAsm(out *[4]uint64, x *[4]uint64)
-
-// squareMontgomeryNADXAsm performs a public number of Montgomery scalar squarings.
-//
-//go:noescape
-func squareMontgomeryNADXAsm(out *[4]uint64, x *[4]uint64, n uint64)
-
 // invVartimeWordsADXAsm computes a scalar inverse for public canonical input words.
 //
 //go:noescape

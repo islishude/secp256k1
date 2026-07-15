@@ -4,6 +4,76 @@
 
 #include "textflag.h"
 
+// func addMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
+// Requires: CMOV
+TEXT ·addMontgomeryADXAsm(SB), NOSPLIT, $0-24
+	MOVQ    x+8(FP), SI
+	MOVQ    (SI), R8
+	MOVQ    8(SI), R9
+	MOVQ    16(SI), R10
+	MOVQ    24(SI), R11
+	MOVQ    y+16(FP), SI
+	MOVQ    (SI), R12
+	MOVQ    8(SI), R13
+	MOVQ    16(SI), R14
+	MOVQ    24(SI), R15
+	XORQ    DX, DX
+	ADDQ    R12, R8
+	ADCQ    R13, R9
+	ADCQ    R14, R10
+	ADCQ    R15, R11
+	ADCQ    $0x00, DX
+	MOVQ    R8, R12
+	MOVQ    R9, R13
+	MOVQ    R10, R14
+	MOVQ    R11, R15
+	MOVQ    $0xfffffffefffffc2f, AX
+	SUBQ    AX, R12
+	SBBQ    $-1, R13
+	SBBQ    $-1, R14
+	SBBQ    $-1, R15
+	SBBQ    $0x00, DX
+	CMOVQCS R8, R12
+	CMOVQCS R9, R13
+	CMOVQCS R10, R14
+	CMOVQCS R11, R15
+	MOVQ    out+0(FP), SI
+	MOVQ    R12, (SI)
+	MOVQ    R13, 8(SI)
+	MOVQ    R14, 16(SI)
+	MOVQ    R15, 24(SI)
+	RET
+
+// func subMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
+TEXT ·subMontgomeryADXAsm(SB), NOSPLIT, $0-24
+	MOVQ x+8(FP), SI
+	MOVQ (SI), R8
+	MOVQ 8(SI), R9
+	MOVQ 16(SI), R10
+	MOVQ 24(SI), R11
+	MOVQ y+16(FP), SI
+	MOVQ (SI), R12
+	MOVQ 8(SI), R13
+	MOVQ 16(SI), R14
+	MOVQ 24(SI), R15
+	SUBQ R12, R8
+	SBBQ R13, R9
+	SBBQ R14, R10
+	SBBQ R15, R11
+	SBBQ AX, AX
+	MOVQ $0xfffffffefffffc2f, DX
+	ANDQ AX, DX
+	ADDQ DX, R8
+	ADCQ AX, R9
+	ADCQ AX, R10
+	ADCQ AX, R11
+	MOVQ out+0(FP), SI
+	MOVQ R8, (SI)
+	MOVQ R9, 8(SI)
+	MOVQ R10, 16(SI)
+	MOVQ R11, 24(SI)
+	RET
+
 // func mulMontgomeryADXAsm(out *[4]uint64, x *[4]uint64, y *[4]uint64)
 // Requires: ADX, BMI2, CMOV, SSE2
 TEXT ·mulMontgomeryADXAsm(SB), NOSPLIT, $0-24

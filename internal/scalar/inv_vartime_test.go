@@ -73,7 +73,7 @@ func TestInvVartimeAliasing(t *testing.T) {
 }
 
 func TestInvVartimeBackendMatchesGo(t *testing.T) {
-	edges := scalarMontgomeryBackendEdges()
+	edges := invVartimeBackendEdges()
 	for i, input := range edges {
 		checkInvVartimeWordsBackend(t, i, input)
 	}
@@ -89,6 +89,19 @@ func TestInvVartimeBackendMatchesGo(t *testing.T) {
 		}
 		input = reduceWordsModOrder(input)
 		checkInvVartimeWordsBackend(t, i+len(edges), input)
+	}
+}
+
+func invVartimeBackendEdges() [][4]uint64 {
+	return [][4]uint64{
+		{},
+		{1},
+		{2},
+		{^uint64(0)},
+		{0, ^uint64(0)},
+		{0, 0, ^uint64(0)},
+		{orderLimb3 - 1, orderLimb2, orderLimb1, orderLimb0},
+		{0x0123456789abcdef, 0xfedcba9876543210, 0x55aa55aa55aa55aa, 0x7fffffffffffffff},
 	}
 }
 

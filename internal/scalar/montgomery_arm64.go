@@ -4,14 +4,6 @@ package scalar
 
 import fiat "github.com/islishude/secp256k1/internal/fiat/scalarfield"
 
-func mulMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
-	fiat.Mul(out, x, y)
-}
-
-func squareMontgomery(out, x *fiat.MontgomeryDomainFieldElement) {
-	fiat.Square(out, x)
-}
-
 func invVartimeWords(out, x *[4]uint64) {
 	*out = invVartimeWordsGo(*x)
 }

@@ -361,13 +361,13 @@ func (z *Element) Neg(x *Element) *Element {
 
 // Mul assigns z = x*y mod n.
 func (z *Element) Mul(x, y *Element) *Element {
-	mulMontgomery(&z.x, &x.x, &y.x)
+	fiat.Mul(&z.x, &x.x, &y.x)
 	return z
 }
 
 // Square assigns z = x^2 mod n.
 func (z *Element) Square(x *Element) *Element {
-	squareMontgomery(&z.x, &x.x)
+	fiat.Square(&z.x, &x.x)
 	return z
 }
 

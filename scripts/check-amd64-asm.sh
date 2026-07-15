@@ -25,7 +25,7 @@ GOOS=linux GOARCH=amd64 GOAMD64="${GOAMD64:-v1}" \
 go tool objdump -s 'github.com/islishude/secp256k1/internal/field\..*ADXAsm' "${binary}" >"${disassembly}"
 go tool nm -size -sort address "${binary}" >"${symbols}"
 
-for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
   grep -q "${symbol}" "${symbols}"
 done
 
@@ -35,41 +35,12 @@ go tool objdump -s 'github.com/islishude/secp256k1/internal/scalar\..*ADXAsm' \
   "${scalar_binary}" >"${scalar_disassembly}"
 go tool nm -size -sort address "${scalar_binary}" >"${scalar_symbols}"
 
-for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm squareMontgomeryNADXAsm invVartimeWordsADXAsm; do
+for symbol in invVartimeWordsADXAsm; do
   grep -q "${symbol}" "${scalar_symbols}"
 done
 grep -Eq '^[[:space:]]*MULXQ[[:space:]]' "${scalar_source_asm}"
 grep -Eq '^[[:space:]]*ADCXQ[[:space:]]' "${scalar_source_asm}"
 grep -Eq '^[[:space:]]*ADOXQ[[:space:]]' "${scalar_source_asm}"
-
-for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
-  symbol_source="${output_dir}/scalar-${symbol}.source.txt"
-  awk -v symbol="${symbol}" '
-    $0 ~ "^TEXT ·" symbol "\\(" { active = 1 }
-    active && $0 ~ "^TEXT ·" && $0 !~ ("^TEXT ·" symbol "\\(") { exit }
-    active { print }
-  ' "${scalar_source_asm}" >"${symbol_source}"
-  if grep -Eq '^[[:space:]]*J[A-Z]+[[:space:]]' "${symbol_source}"; then
-    echo "secret-independent scalar kernel ${symbol} contains a branch" >&2
-    exit 1
-  fi
-  head -n 1 "${symbol_source}" | grep -Fq "TEXT ·${symbol}(SB), NOSPLIT, \$0-"
-done
-
-scalar_square_n_source="${output_dir}/scalar-squareMontgomeryNADXAsm.source.txt"
-awk '
-  /^TEXT ·squareMontgomeryNADXAsm\(/ { active = 1 }
-  active && /^TEXT ·/ && !/^TEXT ·squareMontgomeryNADXAsm\(/ { exit }
-  active { print }
-' "${scalar_source_asm}" >"${scalar_square_n_source}"
-grep -Eq '^TEXT ·squareMontgomeryNADXAsm\(SB\), NOSPLIT, \$0-' "${scalar_square_n_source}"
-test "$(grep -Ec '^[[:space:]]*JEQ[[:space:]]' "${scalar_square_n_source}")" -eq 2
-test "$(grep -Ec '^[[:space:]]*JMP[[:space:]]' "${scalar_square_n_source}")" -eq 1
-if grep -E '^[[:space:]]*J[A-Z]+[[:space:]]' "${scalar_square_n_source}" \
-  | grep -Ev '^[[:space:]]*(JEQ|JMP)[[:space:]]' >/dev/null; then
-  echo 'scalar SquareN contains a non-counter branch' >&2
-  exit 1
-fi
 
 scalar_inv_source="${output_dir}/scalar-invVartimeWordsADXAsm.source.txt"
 awk '
@@ -91,12 +62,18 @@ for rejected in squareMontgomeryNADXAsm mulByB3MontgomeryADXAsm; do
     exit 1
   fi
 done
+for rejected in mulMontgomeryADXAsm squareMontgomeryADXAsm squareMontgomeryNADXAsm; do
+  if grep -q "${rejected}" "${scalar_symbols}"; then
+    echo "rejected scalar AMD64 kernel ${rejected} is still linked" >&2
+    exit 1
+  fi
+done
 
 grep -Eq '^[[:space:]]*MULXQ[[:space:]]' "${source_asm}"
 grep -Eq '^[[:space:]]*ADCXQ[[:space:]]' "${source_asm}"
 grep -Eq '^[[:space:]]*ADOXQ[[:space:]]' "${source_asm}"
 
-for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
   symbol_source="${output_dir}/${symbol}.source.txt"
   awk -v symbol="${symbol}" '
     $0 ~ "^TEXT ·" symbol "\\(" { active = 1 }
@@ -139,7 +116,7 @@ fi
 if command -v objdump >/dev/null && objdump --version | grep -q 'GNU objdump'; then
   native_disassembly="${output_dir}/field-amd64.gnu-objdump.txt"
   : >"${native_disassembly}"
-  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+  for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
     symbol_dump="${output_dir}/${symbol}.gnu-objdump.txt"
     objdump -d --disassemble="github.com/islishude/secp256k1/internal/field.${symbol}.abi0" \
       "${binary}" >"${symbol_dump}"
@@ -148,7 +125,7 @@ if command -v objdump >/dev/null && objdump --version | grep -q 'GNU objdump'; t
 
   scalar_native_disassembly="${output_dir}/scalar-amd64.gnu-objdump.txt"
   : >"${scalar_native_disassembly}"
-  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm squareMontgomeryNADXAsm invVartimeWordsADXAsm; do
+  for symbol in invVartimeWordsADXAsm; do
     symbol_dump="${output_dir}/scalar-${symbol}.gnu-objdump.txt"
     objdump -d --disassemble="github.com/islishude/secp256k1/internal/scalar.${symbol}.abi0" \
       "${scalar_binary}" >"${symbol_dump}"
@@ -157,17 +134,10 @@ if command -v objdump >/dev/null && objdump --version | grep -q 'GNU objdump'; t
   grep -Eiq '[[:space:]]mulxq?[[:space:]]' "${scalar_native_disassembly}"
   grep -Eiq '[[:space:]]adcxq?[[:space:]]' "${scalar_native_disassembly}"
   grep -Eiq '[[:space:]]adoxq?[[:space:]]' "${scalar_native_disassembly}"
-  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
-    if grep -Eiq '[[:space:]]j[a-z]+[[:space:]]' "${output_dir}/scalar-${symbol}.gnu-objdump.txt"; then
-      echo "native scalar disassembly for ${symbol} contains a branch" >&2
-      exit 1
-    fi
-  done
-
   grep -Eiq '[[:space:]]mulxq?[[:space:]]' "${native_disassembly}"
   grep -Eiq '[[:space:]]adcxq?[[:space:]]' "${native_disassembly}"
   grep -Eiq '[[:space:]]adoxq?[[:space:]]' "${native_disassembly}"
-  for symbol in mulMontgomeryADXAsm squareMontgomeryADXAsm; do
+  for symbol in addMontgomeryADXAsm subMontgomeryADXAsm mulMontgomeryADXAsm squareMontgomeryADXAsm; do
     if grep -Eiq '[[:space:]]j[a-z]+[[:space:]]' "${output_dir}/${symbol}.gnu-objdump.txt"; then
       echo "native disassembly for ${symbol} contains a branch" >&2
       exit 1

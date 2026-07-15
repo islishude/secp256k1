@@ -103,37 +103,33 @@ func TestW6Gate(t *testing.T) {
 	}
 }
 
-func TestV2ScalarGates(t *testing.T) {
+func TestV2FieldGates(t *testing.T) {
 	baseline := benchmarkSamples(map[string]float64{
-		"BenchmarkScalarMul":          100,
-		"BenchmarkScalarSquare":       100,
-		"BenchmarkScalarSquareN":      100,
-		"BenchmarkScalarInv":          100,
+		"BenchmarkFieldAdd":           100,
+		"BenchmarkFieldSub":           100,
 		"BenchmarkSignRecoverable":    100,
 		"BenchmarkVerifyHotPublicKey": 100,
 	})
 	candidate := benchmarkSamples(map[string]float64{
-		"BenchmarkScalarMul":          85,
-		"BenchmarkScalarSquare":       84,
-		"BenchmarkScalarSquareN":      80,
-		"BenchmarkScalarInv":          89,
-		"BenchmarkSignRecoverable":    97,
-		"BenchmarkVerifyHotPublicKey": 101,
+		"BenchmarkFieldAdd":           89,
+		"BenchmarkFieldSub":           88,
+		"BenchmarkSignRecoverable":    99,
+		"BenchmarkVerifyHotPublicKey": 100.5,
 	})
-	if err := checkGate("v2-scalar-micro", baseline, candidate); err != nil {
+	if err := checkGate("v2-field-micro", baseline, candidate); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkGate("v2-scalar-e2e", baseline, candidate); err != nil {
+	if err := checkGate("v2-field-e2e", baseline, candidate); err != nil {
 		t.Fatal(err)
 	}
-	candidate["BenchmarkScalarSquareN"].nsPerOp[0] = 86
-	if err := checkGate("v2-scalar-micro", baseline, candidate); err == nil {
-		t.Fatal("expected scalar microbenchmark failure")
+	candidate["BenchmarkFieldAdd"].nsPerOp[0] = 91
+	if err := checkGate("v2-field-micro", baseline, candidate); err == nil {
+		t.Fatal("expected field microbenchmark failure")
 	}
-	candidate["BenchmarkScalarSquareN"].nsPerOp[0] = 80
-	candidate["BenchmarkSignRecoverable"].nsPerOp[0] = 98
-	if err := checkGate("v2-scalar-e2e", baseline, candidate); err == nil {
-		t.Fatal("expected scalar end-to-end failure")
+	candidate["BenchmarkFieldAdd"].nsPerOp[0] = 89
+	candidate["BenchmarkSignRecoverable"].nsPerOp[0] = 99.5
+	if err := checkGate("v2-field-e2e", baseline, candidate); err == nil {
+		t.Fatal("expected field end-to-end failure")
 	}
 }
 

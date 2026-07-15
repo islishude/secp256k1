@@ -10,9 +10,6 @@ import (
 
 func TestAMD64ScalarFeatureDispatch(t *testing.T) {
 	want := amd64ScalarKernelSet{
-		mul:        cpufeat.HasADXAndBMI2,
-		square:     cpufeat.HasADXAndBMI2,
-		squareN:    cpufeat.HasADXAndBMI2,
 		invVartime: cpufeat.HasADXAndBMI2,
 	}
 	if amd64ScalarKernels != want {
@@ -26,8 +23,6 @@ func TestAMD64ScalarFiatFallback(t *testing.T) {
 	amd64ScalarKernels = amd64ScalarKernelSet{}
 	t.Cleanup(func() { amd64ScalarKernels = original })
 
-	checkScalarMontgomeryBackend(t,
-		[4]uint64{orderLimb3 - 1, orderLimb2, orderLimb1, orderLimb0},
-		[4]uint64{0x0123456789abcdef, 0xfedcba9876543210, 0x55aa55aa55aa55aa, 0x7fffffffffffffff},
-	)
+	input := [4]uint64{0x0123456789abcdef, 0xfedcba9876543210, 0x55aa55aa55aa55aa, 0x7fffffffffffffff}
+	checkInvVartimeWordsBackend(t, 0, reduceWordsModOrder(input))
 }

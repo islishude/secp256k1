@@ -21,9 +21,6 @@ func Enabled(kernel string) bool {
 	if enabled["all"] {
 		return true
 	}
-	if enabled["scalar"] && strings.HasPrefix(kernel, "scalar-") {
-		return true
-	}
 	return enabled[kernel]
 }
 
@@ -45,13 +42,9 @@ func parse(selection string) map[string]bool {
 	}
 
 	allowed := map[string]bool{
-		"scalar":         true,
-		"scalar-mul":     true,
-		"scalar-square":  true,
-		"scalar-squaren": true,
-		"invvartime":     true,
-		"field-add":      true,
-		"field-sub":      true,
+		"invvartime": true,
+		"field-add":  true,
+		"field-sub":  true,
 	}
 	result := make(map[string]bool)
 	for _, kernel := range strings.Split(selection, ",") {
