@@ -4,12 +4,21 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_dir}"
 
-if rg -n 'Vartime|invVartime' sign.go privatekey.go rfc6979.go; then
+if grep -nHE 'Vartime|invVartime' sign.go privatekey.go rfc6979.go; then
   echo 'variable-time function used in a secret path' >&2
   exit 1
 fi
 
-callers="$({ rg -l --glob '*.go' --glob '!*_test.go' '\.InvVartime\(' . || true; } | sort)"
+list_production_go_files_with() {
+  local pattern="$1"
+  if command -v rg >/dev/null 2>&1; then
+    rg -l --glob '*.go' --glob '!*_test.go' "${pattern}" . || true
+    return
+  fi
+  find . -name '*.go' ! -name '*_test.go' -exec grep -lE "${pattern}" {} + || true
+}
+
+callers="$(list_production_go_files_with '\.InvVartime\(' | sort)"
 expected="$(printf '%s\n' ./recover.go ./verify.go | sort)"
 if [[ "${callers}" != "${expected}" ]]; then
   echo 'unexpected production InvVartime caller set:' >&2
@@ -17,7 +26,7 @@ if [[ "${callers}" != "${expected}" ]]; then
   exit 1
 fi
 
-asm_callers="$({ rg -l --glob '*.go' --glob '!*_test.go' 'invVartimeWordsADXAsm\(' . || true; } | sort)"
+asm_callers="$(list_production_go_files_with 'invVartimeWordsADXAsm\(' | sort)"
 expected_asm_callers="$(printf '%s\n' \
   ./internal/scalar/montgomery_amd64.go \
   ./internal/scalar/montgomery_amd64_stub.go | sort)"

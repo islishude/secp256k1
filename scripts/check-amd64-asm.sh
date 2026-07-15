@@ -65,7 +65,8 @@ awk '
 grep -Eq '^TEXT ·squareMontgomeryNADXAsm\(SB\), NOSPLIT, \$0-' "${scalar_square_n_source}"
 test "$(grep -Ec '^[[:space:]]*JEQ[[:space:]]' "${scalar_square_n_source}")" -eq 2
 test "$(grep -Ec '^[[:space:]]*JMP[[:space:]]' "${scalar_square_n_source}")" -eq 1
-if grep -Eq '^[[:space:]]*J[A-Z]+[[:space:]]' "${scalar_square_n_source}" | grep -Ev '^[[:space:]]*(JEQ|JMP)[[:space:]]'; then
+if grep -E '^[[:space:]]*J[A-Z]+[[:space:]]' "${scalar_square_n_source}" \
+  | grep -Ev '^[[:space:]]*(JEQ|JMP)[[:space:]]' >/dev/null; then
   echo 'scalar SquareN contains a non-counter branch' >&2
   exit 1
 fi

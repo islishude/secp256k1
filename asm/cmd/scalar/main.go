@@ -337,10 +337,10 @@ func emitMontgomeryProduct(multiplicand, multiplier [4]reg.VecPhysical) [4]reg.G
 		IMULQ(reg.RAX, reg.RDX)
 		emitMontgomeryReduceScalar(t)
 
-		// The low limb is zero by construction and is discarded.
-		for i := 0; i < len(t)-1; i++ {
-			MOVQ(t[i+1], t[i])
-		}
+		// The low limb is zero by construction and is discarded. Rotate the
+		// register mapping at generation time instead of emitting five MOVQ
+		// instructions for the Montgomery word shift.
+		t = [6]reg.GPPhysical{t[1], t[2], t[3], t[4], t[5], t[0]}
 		XORQ(t[len(t)-1], t[len(t)-1])
 	}
 
@@ -379,36 +379,27 @@ func emitMulAdd(t [6]reg.GPPhysical, loadMultiplicand func(int, reg.GPPhysical))
 
 // emitMontgomeryReduceScalar adds q*n by computing q*2^256-q*c, where
 // c=2^256-n has only three limbs. RDX contains q and remains unchanged by
-// MULX. The four-limb q*c product is staged in SSE2 registers before its fixed
-// borrow chain is applied to the accumulator.
+// MULX. The four-limb q*c product stays in general-purpose registers before
+// its fixed borrow chain is applied to the accumulator. This avoids the eight
+// GPR/SSE2 transfers per reduction row used by the first complement schedule.
 func emitMontgomeryReduceScalar(t [6]reg.GPPhysical) {
-	product := [4]reg.VecPhysical{reg.X8, reg.X9, reg.X10, reg.X11}
-
 	MOVQ(U64(scalarComplement[0]), reg.RSI)
-	MULXQ(reg.RSI, reg.RAX, reg.RBX)
-	MOVQ(reg.RAX, product[0])
+	MULXQ(reg.RSI, reg.R14, reg.RBX)
 
 	MOVQ(U64(scalarComplement[1]), reg.RSI)
-	MULXQ(reg.RSI, reg.RAX, reg.RCX)
-	ADDQ(reg.RBX, reg.RAX)
+	MULXQ(reg.RSI, reg.R15, reg.RCX)
+	ADDQ(reg.RBX, reg.R15)
 	ADCQ(U8(0), reg.RCX)
-	MOVQ(reg.RAX, product[1])
 
 	MOVQ(reg.RDX, reg.RAX)
 	ADDQ(reg.RCX, reg.RAX)
-	MOVQ(U64(0), reg.RBX)
-	ADCQ(U8(0), reg.RBX)
-	MOVQ(reg.RAX, product[2])
-	MOVQ(reg.RBX, product[3])
+	MOVQ(U64(0), reg.RSI)
+	ADCQ(U8(0), reg.RSI)
 
-	for i := range product {
-		MOVQ(product[i], reg.RAX)
-		if i == 0 {
-			SUBQ(reg.RAX, t[i])
-		} else {
-			SBBQ(reg.RAX, t[i])
-		}
-	}
+	SUBQ(reg.R14, t[0])
+	SBBQ(reg.R15, t[1])
+	SBBQ(reg.RAX, t[2])
+	SBBQ(reg.RSI, t[3])
 	SBBQ(U8(0), t[4])
 	SBBQ(U8(0), t[5])
 	ADDQ(reg.RDX, t[4])
