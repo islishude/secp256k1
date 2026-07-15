@@ -34,7 +34,7 @@ go test -bench=. -benchmem -count=10
 - Keys, digests, public keys, and signatures are prepared before timing starts.
 - Local results below use the default fiat arithmetic backend. Repeated-key
   verification promotes itself from wNAF/GLV to the adaptive comb path after
-  eight valid verifications.
+  eight calls that reach double-scalar multiplication.
 - The fixture derives each implementation's public key directly from the fixed
   private key, then separately checks verification and recovery.
 - Results are medians of ten runs on this machine. Different CPUs, Go versions,
@@ -66,5 +66,6 @@ go test -bench=. -benchmem -count=10
 - Local recoverable signing is about 1.54x slower than geth, and Local
   verification is about 1.08x slower than geth on this machine.
 
-The staged local before/after measurements, including hot/cold public-key
-workloads and internal microbenchmarks, are recorded under `../docs/perf/`.
+Repository-level optimization decisions, retained measurements, rejected
+candidates, and measurement policy are summarized in
+[`../docs/performance.md`](../docs/performance.md).

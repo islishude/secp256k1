@@ -75,31 +75,31 @@ func main() {
 
 ## API Overview
 
-| API                                                | Description                                                                                                            |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --- | -------------------- | --- | ------------------------------ |
-| `DigestSize`, `Digest`                             | Define the fixed digest width used by digest-level APIs.                                                               |
-| `SignatureSize`, `Signature`                       | Define the fixed 64-byte `r                                                                                            |     | s` signature format. |
-| `RecoverableSignatureSize`, `RecoverableSignature` | Define the fixed 65-byte `r                                                                                            |     | s                    |     | recovery-id` signature format. |
-| `ParseSignature([]byte)`                           | Parses a 64-byte compact signature and rejects zero or out-of-range scalars.                                           |
-| `ParseRecoverableSignature([]byte)`                | Parses a 65-byte recoverable signature and rejects invalid recovery ids or non-canonical scalars.                      |
-| `ParseDERSignature([]byte)`                        | Parses a strict DER ECDSA signature and rejects non-minimal or malformed encodings.                                    |
-| `(Signature).Bytes()`                              | Returns the signature as a byte slice for interoperability helpers.                                                    |
-| `(Signature).BytesDER()`                           | Returns a strict DER ECDSA signature encoding.                                                                         |
-| `(RecoverableSignature).Bytes()`                   | Returns the recoverable signature as a byte slice for interoperability helpers.                                        |
-| `(RecoverableSignature).Signature()`               | Returns the non-recoverable `Signature` portion.                                                                       |
-| `GeneratePrivateKey(reader)`                       | Generates a valid private key from a random source; uses `crypto/rand.Reader` when `reader == nil`.                    |
-| `ParsePrivateKey([]byte)`                          | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order.           |
-| `(*PrivateKey).Bytes()`                            | Returns the 32-byte private key encoding or `ErrInvalidPrivateKey`.                                                    |
-| `(*PrivateKey).Destroy()`                          | Best-effort cleanup of private scalar material and invalidation of the key.                                            |
-| `(*PrivateKey).PublicKey()`                        | Derives the public key with base-point multiplication and prepares it for verification.                                |
-| `(*PrivateKey).SignDigest(Digest)`                 | Creates an RFC6979 deterministic low-S `Signature` over a digest.                                                      |
-| `(*PrivateKey).SignRecoverableDigest(Digest)`      | Creates an RFC6979 deterministic low-S `RecoverableSignature`.                                                         |
-| `VerifyDigest(pub, digest, sig)`                   | Verifies a 64-byte signature and accepts mathematically valid high-S signatures using public-input variable-time code. |
-| `VerifyCanonicalDigest(pub, digest, sig)`          | Verifies a 64-byte signature and rejects high-S signatures using public-input variable-time code.                      |
-| `RecoverDigest(digest, recoverableSig)`            | Recovers the public key from a 65-byte recoverable signature.                                                          |
-| `ParsePublicKey([]byte)`                           | Parses a SEC 1 compressed or uncompressed public key and prepares it for verification.                                 |
-| `(PublicKey).BytesCompressed()`                    | Returns the 33-byte compressed public key encoding or `ErrInvalidPublicKey`.                                           |
-| `(PublicKey).BytesUncompressed()`                  | Returns the 65-byte uncompressed public key encoding or `ErrInvalidPublicKey`.                                         |
+| API | Description |
+| --- | --- |
+| `DigestSize`, `Digest` | Define the fixed digest width used by digest-level APIs. |
+| `SignatureSize`, `Signature` | Define the fixed 64-byte, r-then-s signature format. |
+| `RecoverableSignatureSize`, `RecoverableSignature` | Define the fixed 65-byte, r-then-s-then-recovery-id signature format. |
+| `ParseSignature([]byte)` | Parses a 64-byte compact signature and rejects zero or out-of-range scalars. |
+| `ParseRecoverableSignature([]byte)` | Parses a 65-byte recoverable signature and rejects invalid recovery ids or non-canonical scalars. |
+| `ParseDERSignature([]byte)` | Parses a strict DER ECDSA signature and rejects non-minimal or malformed encodings. |
+| `(Signature).Bytes()` | Returns the signature as a byte slice for interoperability helpers. |
+| `(Signature).BytesDER()` | Returns a strict DER ECDSA signature encoding. |
+| `(RecoverableSignature).Bytes()` | Returns the recoverable signature as a byte slice for interoperability helpers. |
+| `(RecoverableSignature).Signature()` | Returns the non-recoverable `Signature` portion. |
+| `GeneratePrivateKey(reader)` | Generates a valid private key; uses `crypto/rand.Reader` when `reader == nil`. |
+| `ParsePrivateKey([]byte)` | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order. |
+| `(*PrivateKey).Bytes()` | Returns the 32-byte private key encoding or `ErrInvalidPrivateKey`. |
+| `(*PrivateKey).Destroy()` | Performs best-effort cleanup of private scalar material and invalidates the key. |
+| `(*PrivateKey).PublicKey()` | Derives the public key and prepares it for verification. |
+| `(*PrivateKey).SignDigest(Digest)` | Creates an RFC6979 deterministic low-S `Signature`. |
+| `(*PrivateKey).SignRecoverableDigest(Digest)` | Creates an RFC6979 deterministic low-S `RecoverableSignature`. |
+| `VerifyDigest(pub, digest, sig)` | Verifies a signature and accepts mathematically valid high-S values using public-input variable-time code. |
+| `VerifyCanonicalDigest(pub, digest, sig)` | Verifies a signature and rejects high-S values using public-input variable-time code. |
+| `RecoverDigest(digest, recoverableSig)` | Recovers the public key from a recoverable signature. |
+| `ParsePublicKey([]byte)` | Parses a SEC 1 compressed or uncompressed public key and prepares it for verification. |
+| `(PublicKey).BytesCompressed()` | Returns the 33-byte compressed public key encoding or `ErrInvalidPublicKey`. |
+| `(PublicKey).BytesUncompressed()` | Returns the 65-byte uncompressed public key encoding or `ErrInvalidPublicKey`. |
 
 ## Signature Formats
 
@@ -182,11 +182,14 @@ back to fiat arithmetic when either feature is absent; it does not infer ADX
 support from `GOAMD64`. Both backends must receive independent arithmetic,
 ABI, and constant-time review before any default-enable change.
 
-The latest retained ARM64 measurements and security gates are recorded in
-[`docs/perf/20260711-arm64-field-mul.md`](docs/perf/20260711-arm64-field-mul.md).
-The AMD64 avo implementation, retained/rejected candidates, and v1/v3 gates
-are recorded in
-[`docs/perf/20260714-amd64-avo.md`](docs/perf/20260714-amd64-avo.md).
+The retained backend decisions, measurements, rejected candidates, and CI
+performance policy are summarized in
+[`docs/performance.md`](docs/performance.md). The consolidated independent
+review scope is in [`docs/audit.md`](docs/audit.md).
+
+The single [`CI` workflow](.github/workflows/ci.yaml) covers source quality,
+generated files, default and tagged backends, Linux/macOS/Windows platform
+coverage, the benchmark submodule, and the AMD64 paired performance gate.
 
 Regenerate low-level generated code:
 

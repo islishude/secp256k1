@@ -1,0 +1,244 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality and default backend
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.mod
+            asm/go.sum
+            benchmark/go.sum
+      - name: Golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+      - name: Verify source and root module
+        run: |
+          set -euo pipefail
+          go build ./...
+          gofmt -d .
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go fix -diff ./...
+          go mod tidy -diff
+          make check-main-deps vartime-audit
+      - name: Verify generators and generated files
+        run: make check-asm-module generate-check
+      - name: Verify benchmark module
+        working-directory: ./benchmark
+        run: |
+          set -euo pipefail
+          go build ./...
+          go vet ./...
+          go fix -diff ./...
+          go mod tidy -diff
+          go test -race -count=1 .
+      - name: Test default backend
+        run: go test -v -race -count=1 -cover ./...
+      - name: Fuzz default sign, verify, and recovery path
+        run: go test -run '^$' -fuzz=FuzzSignVerifyRecoverDigest -fuzztime=10s .
+
+  arm64-asm:
+    name: ARM64 assembly (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04-arm
+          - macos-26
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+      - name: Build, vet, and test tagged backend
+        run: |
+          go build -tags=secp256k1_asm ./...
+          go vet -tags=secp256k1_asm ./...
+          go test -race -count=1 -tags=secp256k1_asm ./...
+      - name: Constant-time smoke
+        env:
+          SECP256K1_CT_TEST: "1"
+        run: go test -count=1 -tags=secp256k1_asm -run TestConstantTimeScalarBaseMultSmoke .
+
+  amd64-asm:
+    name: AMD64 assembly (GOAMD64=${{ matrix.goamd64 }})
+    strategy:
+      fail-fast: false
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.mod
+            asm/go.sum
+      - name: Build, vet, and test tagged backend
+        run: |
+          go build -tags=secp256k1_asm ./...
+          go vet -tags=secp256k1_asm ./...
+          go test -v -race -count=1 -tags=secp256k1_asm ./...
+      - name: Fuzz tagged base-field arithmetic
+        run: go test -tags=secp256k1_asm -run '^$' -fuzz=FuzzElementArithmetic -fuzztime=10s ./internal/field
+      - name: Constant-time smoke
+        env:
+          SECP256K1_CT_TEST: "1"
+        run: go test -count=1 -tags=secp256k1_asm -run TestConstantTimeScalarBaseMultSmoke .
+      - name: Disassemble and audit kernels
+        run: ./scripts/check-amd64-asm.sh "${RUNNER_TEMP}/amd64-audit"
+      - name: Upload disassembly
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amd64-${{ matrix.goamd64 }}-disassembly
+          path: ${{ runner.temp }}/amd64-audit
+          retention-days: 14
+
+  windows-amd64-asm:
+    name: Windows AMD64 assembly (GOAMD64=${{ matrix.goamd64 }})
+    strategy:
+      fail-fast: false
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+      - name: Build, vet, and test tagged backend
+        run: |
+          go build -tags=secp256k1_asm ./...
+          go vet -tags=secp256k1_asm ./...
+          go test -race -count=1 -tags=secp256k1_asm ./...
+
+  darwin-amd64-cross-build:
+    name: Darwin AMD64 cross-build (GOAMD64=${{ matrix.goamd64 }})
+    strategy:
+      fail-fast: false
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOOS: darwin
+      GOARCH: amd64
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+      - name: Cross-build tagged backend
+        run: go build -tags=secp256k1_asm ./...
+
+  benchmark:
+    name: Benchmark (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - ubuntu-24.04-arm
+          - macos-26
+          - windows-2025-vs2026
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ./benchmark
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: benchmark/go.sum
+      - name: Run compatibility benchmarks
+        run: go test -bench=. -benchmem -count=5
+
+  amd64-performance:
+    name: AMD64 performance (GOAMD64=${{ matrix.goamd64 }})
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        goamd64:
+          - v1
+          - v3
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOAMD64: ${{ matrix.goamd64 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: |
+            go.mod
+            asm/go.sum
+      - name: Record runner and feature state
+        run: ./scripts/benchmark-amd64.sh environment "${RUNNER_TEMP}/amd64-bench"
+      - name: Interleave default and tagged benchmarks
+        run: ./scripts/benchmark-amd64.sh benchmarks "${RUNNER_TEMP}/amd64-bench"
+      - name: Capture tagged CPU profiles
+        run: ./scripts/benchmark-amd64.sh profiles "${RUNNER_TEMP}/amd64-bench"
+      - name: Build median reports
+        run: ./scripts/benchmark-amd64.sh report "${RUNNER_TEMP}/amd64-bench"
+      - name: Check final end-to-end thresholds
+        if: always()
+        run: ./scripts/benchmark-amd64.sh gate "${RUNNER_TEMP}/amd64-bench"
+      - name: Upload raw benchmark data
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: amd64-${{ matrix.goamd64 }}-benchmarks
+          path: ${{ runner.temp }}/amd64-bench
+          retention-days: 14
