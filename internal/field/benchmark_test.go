@@ -26,6 +26,14 @@ func BenchmarkFieldMulByB3(b *testing.B) {
 	}
 }
 
+func BenchmarkFieldMulByB3Fiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		fiat.Mul(&benchmarkFiatElementSink, &x.x, &b3Montgomery)
+	}
+}
+
 func BenchmarkFieldSquare(b *testing.B) {
 	x := benchmarkElement(0x1234567890abcdef)
 	b.ReportAllocs()
@@ -39,6 +47,17 @@ func BenchmarkFieldSquareN(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkElementSink.SquareN(&x, 64)
+	}
+}
+
+func BenchmarkFieldSquareNFiat(b *testing.B) {
+	x := benchmarkElement(0x1234567890abcdef)
+	b.ReportAllocs()
+	for b.Loop() {
+		benchmarkFiatElementSink = x.x
+		for range 64 {
+			fiat.Square(&benchmarkFiatElementSink, &benchmarkFiatElementSink)
+		}
 	}
 }
 

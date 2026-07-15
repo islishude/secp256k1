@@ -1,10 +1,8 @@
-//go:build !arm64 || !secp256k1_asm
+//go:build (!arm64 && !amd64) || !secp256k1_asm
 
 package field
 
 import fiat "github.com/islishude/secp256k1/internal/fiat/basefield"
-
-var b3Montgomery = fiat.MontgomeryDomainFieldElement{0x1500005025, 0, 0, 0}
 
 func addMontgomery(out, x, y *fiat.MontgomeryDomainFieldElement) {
 	fiat.Add(out, x, y)

@@ -13,3 +13,8 @@ updates:
     directory: /benchmark
     schedule:
       interval: monthly
+
+  - package-ecosystem: gomod
+    directory: /asm
+    schedule:
+      interval: monthly

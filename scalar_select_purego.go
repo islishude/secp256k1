@@ -1,4 +1,4 @@
-//go:build !arm64 || !secp256k1_asm
+//go:build (!arm64 && !amd64) || !secp256k1_asm || (amd64 && secp256k1_amd64_w5_bench)
 
 package secp256k1
 

@@ -72,11 +72,11 @@ func main() {
 
 	var w5Body bytes.Buffer
 	writeFixedTable(&w5Body, "generatorAffineTableW5Words", w5)
-	writeGenerated("zz_precompute_base_w5.go", "!arm64 || !secp256k1_asm", fmt.Sprintf("base-window=%d", baseWindowW5), sourceHash, w5Body.Bytes())
+	writeGenerated("zz_precompute_base_w5.go", "(!arm64 && !amd64) || !secp256k1_asm || (amd64 && secp256k1_amd64_w5_bench)", fmt.Sprintf("base-window=%d", baseWindowW5), sourceHash, w5Body.Bytes())
 
 	var w6Body bytes.Buffer
 	writeFixedTable(&w6Body, "generatorAffineTableW6Words", w6)
-	writeGenerated("zz_precompute_base_w6_arm64.go", "arm64 && secp256k1_asm", fmt.Sprintf("base-window=%d", baseWindowW6), sourceHash, w6Body.Bytes())
+	writeGenerated("zz_precompute_base_w6_asm.go", "(arm64 && secp256k1_asm) || (amd64 && secp256k1_asm && !secp256k1_amd64_w5_bench)", fmt.Sprintf("base-window=%d", baseWindowW6), sourceHash, w6Body.Bytes())
 }
 
 func writeGenerated(path, buildTag, parameters string, sourceHash [32]byte, body []byte) {
