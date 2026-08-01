@@ -6,7 +6,7 @@ replace github.com/islishude/secp256k1 => ../
 
 require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
-	github.com/ethereum/go-ethereum v1.17.4
+	github.com/ethereum/go-ethereum v1.17.5
 	github.com/islishude/secp256k1 v0.0.0-00010101000000-000000000000
 )
 
