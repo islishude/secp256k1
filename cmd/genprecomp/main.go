@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/bits"
 	"os"
+	"strings"
 )
 
 const (
@@ -59,6 +60,7 @@ func main() {
 		panic(err)
 	}
 	sourceHash := sha256.Sum256(source)
+	writeNormalizers(sourceHash)
 
 	var shared bytes.Buffer
 	writeWNAFTable(&shared, wnaf)
@@ -265,3 +267,57 @@ func mustBig(s string) *big.Int {
 	}
 	return x
 }
+
+// A single algorithm emits fixed-size variants to preserve stack allocation and
+// compiler specialization. Inputs are finite points from precomputation builders.
+func writeNormalizers(sourceHash [32]byte) {
+	var production, tests bytes.Buffer
+	production.WriteString("import \"github.com/islishude/secp256k1/internal/field\"\n\n")
+	tests.WriteString("import \"github.com/islishude/secp256k1/internal/field\"\n\n")
+	for _, target := range []struct {
+		name, size string
+		test       bool
+	}{
+		{"batchNormalize", "varWNAFTableSize", false},
+		{"batchNormalizeVerifyComb", "verifyCombTableSize - 1", false},
+		{"batchNormalizeGenerator", "generatorWNAFSize", true},
+		{"batchNormalize15", "15", true},
+		{"batchNormalize16", "16", true},
+		{"batchNormalize32ForTest", "32", true},
+	} {
+		out := &production
+		if target.test {
+			out = &tests
+		}
+		out.WriteString(strings.NewReplacer("FUNCTION", target.name, "SIZE", target.size).Replace(normalizeTemplate))
+	}
+	writeGenerated("zz_normalize.go", "", "finite-point-batch-normalization", sourceHash, production.Bytes())
+	writeGenerated("zz_normalize_test.go", "", "reference-batch-normalization", sourceHash, tests.Bytes())
+}
+
+const normalizeTemplate = `
+// FUNCTION normalizes finite Jacobian points with one inversion.
+// All input z coordinates must be nonzero.
+func FUNCTION(points [SIZE]point) [SIZE]affinePoint {
+    var prefixes [SIZE]field.Element
+    var acc field.Element
+    acc.SetOne()
+    for i := range points {
+        prefixes[i].Set(&acc)
+        acc.Mul(&acc, &points[i].z)
+    }
+    var accInv field.Element
+    accInv.Inv(&acc)
+    var out [SIZE]affinePoint
+    for i := len(points)-1; i >= 0; i-- {
+        var zInv, z2, z3 field.Element
+        zInv.Mul(&accInv, &prefixes[i])
+        accInv.Mul(&accInv, &points[i].z)
+        z2.Square(&zInv)
+        z3.Mul(&z2, &zInv)
+        out[i].x.Mul(&points[i].x, &z2)
+        out[i].y.Mul(&points[i].y, &z3)
+    }
+    return out
+}
+`

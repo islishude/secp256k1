@@ -2,6 +2,7 @@ package secp256k1
 
 import (
 	"crypto/sha256"
+	"runtime"
 
 	"github.com/islishude/secp256k1/internal/scalar"
 )
@@ -15,6 +16,7 @@ type nonceRFC6979 struct {
 
 func newNonceRFC6979(priv *[PrivateKeySize]byte, digest *Digest) nonceRFC6979 {
 	var n nonceRFC6979
+	defer n.Destroy()
 	for i := range n.v {
 		n.v[i] = 0x01
 	}
@@ -47,9 +49,11 @@ func (n *nonceRFC6979) Reject() {
 	n.v = hmacRFC6979V(&n.k, &n.v)
 }
 
+//go:noinline
 func (n *nonceRFC6979) Destroy() {
 	clear(n.k[:])
 	clear(n.v[:])
+	runtime.KeepAlive(n)
 }
 
 func initHMACPadsK32(
@@ -76,17 +80,18 @@ func hmacRFC6979V(
 	key *[sha256.Size]byte,
 	v *[sha256.Size]byte,
 ) [sha256.Size]byte {
-	var inner [sha256.BlockSize + maxHMACPayloadSize]byte
-	var outer [sha256.BlockSize + sha256.Size]byte
+	var scratch hmacScratch
+	defer scratch.destroy()
+	inner, outer := &scratch.inner, &scratch.outer
 
-	initHMACPadsK32(&inner, &outer, key)
+	initHMACPadsK32(inner, outer, key)
 
 	n := sha256.BlockSize
 	copy(inner[n:], v[:])
 	n += sha256.Size
 
-	innerHash := sha256.Sum256(inner[:n])
-	copy(outer[sha256.BlockSize:], innerHash[:])
+	scratch.hash = sha256.Sum256(inner[:n])
+	copy(outer[sha256.BlockSize:], scratch.hash[:])
 
 	return sha256.Sum256(outer[:])
 }
@@ -98,10 +103,11 @@ func hmacRFC6979Reject(
 	key *[sha256.Size]byte,
 	v *[sha256.Size]byte,
 ) [sha256.Size]byte {
-	var inner [sha256.BlockSize + maxHMACPayloadSize]byte
-	var outer [sha256.BlockSize + sha256.Size]byte
+	var scratch hmacScratch
+	defer scratch.destroy()
+	inner, outer := &scratch.inner, &scratch.outer
 
-	initHMACPadsK32(&inner, &outer, key)
+	initHMACPadsK32(inner, outer, key)
 
 	n := sha256.BlockSize
 	copy(inner[n:], v[:])
@@ -110,8 +116,8 @@ func hmacRFC6979Reject(
 	inner[n] = 0x00
 	n++
 
-	innerHash := sha256.Sum256(inner[:n])
-	copy(outer[sha256.BlockSize:], innerHash[:])
+	scratch.hash = sha256.Sum256(inner[:n])
+	copy(outer[sha256.BlockSize:], scratch.hash[:])
 
 	return sha256.Sum256(outer[:])
 }
@@ -128,10 +134,11 @@ func hmacRFC6979Init(
 	priv *[PrivateKeySize]byte,
 	h1 *[scalar.Size]byte,
 ) [sha256.Size]byte {
-	var inner [sha256.BlockSize + maxHMACPayloadSize]byte
-	var outer [sha256.BlockSize + sha256.Size]byte
+	var scratch hmacScratch
+	defer scratch.destroy()
+	inner, outer := &scratch.inner, &scratch.outer
 
-	initHMACPadsK32(&inner, &outer, key)
+	initHMACPadsK32(inner, outer, key)
 
 	n := sha256.BlockSize
 
@@ -147,8 +154,29 @@ func hmacRFC6979Init(
 	copy(inner[n:], h1[:])
 	n += scalar.Size
 
-	innerHash := sha256.Sum256(inner[:n])
-	copy(outer[sha256.BlockSize:], innerHash[:])
+	scratch.hash = sha256.Sum256(inner[:n])
+	copy(outer[sha256.BlockSize:], scratch.hash[:])
 
 	return sha256.Sum256(outer[:])
+}
+
+// These non-inlined boundaries keep best-effort clearing observable to callers.
+// Go can still retain copies in registers, stacks, or runtime-managed memory.
+//
+//go:noinline
+func clearSecretBytes(b []byte) {
+	clear(b)
+	runtime.KeepAlive(b)
+}
+
+type hmacScratch struct {
+	inner [sha256.BlockSize + maxHMACPayloadSize]byte
+	outer [sha256.BlockSize + sha256.Size]byte
+	hash  [sha256.Size]byte
+}
+
+//go:noinline
+func (s *hmacScratch) destroy() {
+	*s = hmacScratch{}
+	runtime.KeepAlive(s)
 }

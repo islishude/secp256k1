@@ -47,7 +47,7 @@ func (p *point) isInfinity() bool {
 	return p.z.IsZero()
 }
 
-func (p *point) affine() (field.Element, field.Element, bool) {
+func (p *point) affineVartime() (field.Element, field.Element, bool) {
 	if p.isInfinity() {
 		var x, y field.Element
 		return x, y, false
@@ -62,50 +62,7 @@ func (p *point) affine() (field.Element, field.Element, bool) {
 	return x, y, true
 }
 
-func (p *point) doubleSquare(q *point) *point {
-	if q.isInfinity() || q.y.IsZero() {
-		return p.setInfinity()
-	}
-
-	x1, y1, z1 := q.x, q.y, q.z
-	var xx, yy, yyyy, s, m, t field.Element
-
-	// Jacobian doubling formula for curves with a = 0.
-	xx.Square(&x1)
-	yy.Square(&y1)
-	yyyy.Square(&yy)
-
-	t.Add(&x1, &yy)
-	t.Square(&t)
-	t.Sub(&t, &xx)
-	t.Sub(&t, &yyyy)
-	s.Double(&t)
-
-	m.Double(&xx)
-	m.Add(&m, &xx)
-
-	var x3, y3, z3 field.Element
-	x3.Square(&m)
-	t.Double(&s)
-	x3.Sub(&x3, &t)
-
-	t.Sub(&s, &x3)
-	y3.Mul(&m, &t)
-	t.Double(&yyyy)
-	t.Double(&t)
-	t.Double(&t)
-	y3.Sub(&y3, &t)
-
-	z3.Mul(&y1, &z1)
-	z3.Double(&z3)
-
-	p.x.Set(&x3)
-	p.y.Set(&y3)
-	p.z.Set(&z3)
-	return p
-}
-
-func (p *point) double(q *point) *point {
+func (p *point) doubleVartime(q *point) *point {
 	if q.isInfinity() || q.y.IsZero() {
 		return p.setInfinity()
 	}
@@ -139,7 +96,7 @@ func (p *point) double(q *point) *point {
 	return p
 }
 
-func (p *point) add(p1, p2 *point) *point {
+func (p *point) addVartime(p1, p2 *point) *point {
 	if p1.isInfinity() {
 		return p.set(p2)
 	}
@@ -169,7 +126,7 @@ func (p *point) add(p1, p2 *point) *point {
 	if h.IsZero() {
 		if r.IsZero() {
 			// Same affine point.
-			return p.double(p1)
+			return p.doubleVartime(p1)
 		}
 		// Same x-coordinate and opposite y-coordinate.
 		return p.setInfinity()
@@ -205,7 +162,7 @@ func (p *point) add(p1, p2 *point) *point {
 	return p
 }
 
-func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
+func (p *point) addAffineVartime(p1 *point, x2, y2 *field.Element) *point {
 	if p1.isInfinity() {
 		return p.setAffine(x2, y2)
 	}
@@ -226,7 +183,7 @@ func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
 	r.Sub(&s2, &y1)
 	if h.IsZero() {
 		if r.IsZero() {
-			return p.double(p1)
+			return p.doubleVartime(p1)
 		}
 		return p.setInfinity()
 	}
@@ -260,7 +217,7 @@ func (p *point) addAffine(p1 *point, x2, y2 *field.Element) *point {
 
 // addAffineWNAFVartime adds a public affine wNAF table point to p1 using an
 // incomplete mixed-add formula. Exceptional equal/opposite points fall back to
-// the complete behavior in addAffine. It must only be used on public inputs.
+// the complete behavior in addAffineVartime. It must only be used on public inputs.
 func (p *point) addAffineWNAFVartime(p1 *point, x2, y2 *field.Element) *point {
 	if p1.isInfinity() {
 		return p.setAffine(x2, y2)
@@ -276,7 +233,7 @@ func (p *point) addAffineWNAFVartime(p1 *point, x2, y2 *field.Element) *point {
 	h.Sub(&u2, &x1)
 	r.Sub(&s2, &y1)
 	if h.IsZero() {
-		return p.addAffine(p1, x2, y2)
+		return p.addAffineVartime(p1, x2, y2)
 	}
 
 	// Unscaled Jacobian mixed addition:

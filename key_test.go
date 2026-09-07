@@ -172,3 +172,23 @@ func TestPrivateKeyBytesRoundTrip(t *testing.T) {
 		t.Fatal("reparsed private key derived a different public key")
 	}
 }
+
+type partialKeyReader struct{ buffer []byte }
+
+func (r *partialKeyReader) Read(p []byte) (int, error) {
+	r.buffer = p
+	for i := range 16 {
+		p[i] = 0xa5
+	}
+	return 16, errors.New("entropy source failed")
+}
+
+func TestGeneratePrivateKeyClearsPartialRead(t *testing.T) {
+	reader := new(partialKeyReader)
+	if _, err := GeneratePrivateKey(reader); err == nil {
+		t.Fatal("expected read error")
+	}
+	if len(reader.buffer) != PrivateKeySize || !bytes.Equal(reader.buffer, make([]byte, PrivateKeySize)) {
+		t.Fatal("partial private key bytes survived read error")
+	}
+}

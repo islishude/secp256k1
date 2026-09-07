@@ -13,7 +13,7 @@ func TestAddAffineWNAFVartimeMatchesAddAffine(t *testing.T) {
 	negGenerator := generator
 	negGenerator.y.Neg(&negGenerator.y)
 	doubledGenerator := generator
-	doubledGenerator.double(&doubledGenerator)
+	doubledGenerator.doubleVartime(&doubledGenerator)
 
 	tests := []struct {
 		name string
@@ -51,7 +51,7 @@ func TestAddAffineWNAFVartimeMatchesAddAffine(t *testing.T) {
 		}
 		p := scalarBaseMult(&ps)
 		q := scalarBaseMult(&qs)
-		qx, qy, ok := q.affine()
+		qx, qy, ok := q.affineVartime()
 		if !ok {
 			t.Fatal("random affine point is infinity")
 		}
@@ -63,9 +63,9 @@ func assertAddAffineVartimeMatches(t *testing.T, p *point, x, y *field.Element) 
 	t.Helper()
 	var got, want point
 	got.addAffineWNAFVartime(p, x, y)
-	want.addAffine(p, x, y)
-	gotX, gotY, gotOK := got.affine()
-	wantX, wantY, wantOK := want.affine()
+	want.addAffineVartime(p, x, y)
+	gotX, gotY, gotOK := got.affineVartime()
+	wantX, wantY, wantOK := want.affineVartime()
 	if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
 		t.Fatalf("mixed-add mismatch: got (%x, %x, %v), want (%x, %x, %v)",
 			gotX.Bytes(), gotY.Bytes(), gotOK, wantX.Bytes(), wantY.Bytes(), wantOK)
@@ -98,10 +98,10 @@ func TestPointDoubleMulMatchesDouble(t *testing.T) {
 func assertPointDoubleMulMatches(t *testing.T, p *point) {
 	t.Helper()
 	var got, want point
-	got.double(p)
+	got.doubleVartime(p)
 	want.doubleSquare(p)
-	gotX, gotY, gotOK := got.affine()
-	wantX, wantY, wantOK := want.affine()
+	gotX, gotY, gotOK := got.affineVartime()
+	wantX, wantY, wantOK := want.affineVartime()
 	if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
 		t.Fatal("point doubling formulas disagree")
 	}

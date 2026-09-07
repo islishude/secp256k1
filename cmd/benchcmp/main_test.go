@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"slices"
 	"strings"
 	"testing"
@@ -143,5 +144,78 @@ func TestCanonicalBenchmarkName(t *testing.T) {
 	}
 	if got := canonicalBenchmarkName("BenchmarkFoo-arm64"); got != "BenchmarkFoo-arm64" {
 		t.Fatalf("non-CPU suffix changed to %q", got)
+	}
+}
+
+func TestRejectInvalidBenchmarkRecords(t *testing.T) {
+	for _, metrics := range []string{
+		"NaN ns/op 0 B/op 0 allocs/op", "+Inf ns/op 0 B/op 0 allocs/op",
+		"0 ns/op 0 B/op 0 allocs/op", "-1 ns/op 0 B/op 0 allocs/op",
+		"100 ns/op -1 B/op 0 allocs/op", "100 ns/op 0 B/op NaN allocs/op",
+		"100 ns/op 200 ns/op", "100 ns/op 0 B/op 0", "0 B/op 0 allocs/op",
+	} {
+		t.Run(metrics, func(t *testing.T) {
+			if _, err := parseBenchmarks(strings.NewReader("BenchmarkFoo-1 10 " + metrics)); err == nil {
+				t.Fatal("accepted invalid record")
+			}
+		})
+	}
+}
+
+func TestPairedGateRequiresCompleteEvidence(t *testing.T) {
+	names := append([]string{"BenchmarkSignRecoverable", "BenchmarkVerifyHotPublicKey"}, finalNoRegression...)
+	for _, mutation := range []string{"missing allocations", "short", "unequal", "NaN", "negative", "allocation spike"} {
+		t.Run(mutation, func(t *testing.T) {
+			baseline, candidate := map[string]*samples{}, map[string]*samples{}
+			for _, name := range names {
+				baseline[name] = benchmarkSeries(100, 100, 100, 100, 100, 100, 100, 100, 100, 100)
+				candidate[name] = benchmarkSeries(80, 80, 80, 80, 80, 80, 80, 80, 80, 80)
+			}
+			s := candidate[names[0]]
+			switch mutation {
+			case "missing allocations":
+				s.bytesPerOp = nil
+			case "short":
+				baseline[names[0]] = benchmarkSeries(100)
+				candidate[names[0]] = benchmarkSeries(80)
+			case "unequal":
+				s.nsPerOp = append(s.nsPerOp, 80)
+				s.bytesPerOp = append(s.bytesPerOp, 0)
+				s.allocsPerOp = append(s.allocsPerOp, 0)
+			case "NaN":
+				s.nsPerOp[0] = math.NaN()
+			case "negative":
+				s.nsPerOp[0] = -1
+			case "allocation spike":
+				s.allocsPerOp[0] = 1
+			}
+			if err := checkGate("final-paired", baseline, candidate); err == nil {
+				t.Fatal("accepted incomplete or invalid evidence")
+			}
+		})
+	}
+}
+
+func TestMissingMetricsAreNotZero(t *testing.T) {
+	results, err := parseBenchmarks(strings.NewReader("BenchmarkFoo-1 10 100 ns/op\nBenchmarkFoo-1 10 100 ns/op 0 B/op 0 allocs/op"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validateSamples("BenchmarkFoo", results["BenchmarkFoo"], 1); err == nil {
+		t.Fatal("missing metrics treated as zero")
+	}
+	if allZero(nil) {
+		t.Fatal("empty sample set treated as zero")
+	}
+}
+
+func TestRejectTruncatedBenchmarkRecord(t *testing.T) {
+	for _, line := range []string{"BenchmarkFoo-1 10", "BenchmarkFoo-1 10 NaN", "BenchmarkFoo-1 nope 100 ns/op"} {
+		if _, err := parseBenchmarks(strings.NewReader(line)); err == nil {
+			t.Fatalf("accepted %q", line)
+		}
+	}
+	if _, err := parseBenchmarks(strings.NewReader("BenchmarkFoo-1\nBenchmarkFoo-1 10 100 ns/op 0 B/op 0 allocs/op")); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -1,96 +1,24 @@
 package secp256k1
 
-import (
-	"math/bits"
-
-	"github.com/islishude/secp256k1/internal/field"
-)
+import "math/bits"
 
 //go:generate go run ./cmd/genprecomp
-
-func newGeneratorAffineTableW4() [64][16]affinePoint {
-	var table [64][16]affinePoint
-	base := generator
-	for i := range table {
-		table[i][0].infinity = 1
-
-		var points [15]point
-		points[0].set(&base)
-		for j := 1; j < len(points); j++ {
-			points[j].add(&points[j-1], &base)
-		}
-		affine := batchNormalize15(points)
-		for j := 1; j < len(table[i]); j++ {
-			table[i][j] = affine[j-1]
-		}
-
-		// Move to the next 4-bit window: base *= 16.
-		for range 4 {
-			base.double(&base)
-		}
-	}
-	return table
-}
-
-func newGeneratorAffineTableW5() [baseWindows][baseTableSize]affinePoint {
-	var table [baseWindows][baseTableSize]affinePoint
-	base := generator
-	for i := range table {
-		var points [baseTableSize]point
-		points[0].set(&base)
-		for j := 1; j < len(points); j++ {
-			points[j].add(&points[j-1], &base)
-		}
-		affine := batchNormalize16(points)
-		for j := range table[i] {
-			table[i][j] = affine[j]
-		}
-
-		for range baseWindow {
-			base.double(&base)
-		}
-	}
-	return table
-}
 
 func newAffineOddTable(p *point) [varWNAFTableSize]affinePoint {
 	var points [varWNAFTableSize]point
 	points[0].set(p)
 	if len(points) > 1 {
 		var twoP point
-		twoP.double(p)
+		twoP.doubleVartime(p)
 		for i := 1; i < len(points); i++ {
-			points[i].add(&points[i-1], &twoP)
+			points[i].addVartime(&points[i-1], &twoP)
 		}
 	}
 	return batchNormalize(points)
 }
 
-func newGeneratorWNAFTable() [generatorWNAFSize]affinePoint {
-	var points [generatorWNAFSize]point
-	points[0].set(&generator)
-	if len(points) > 1 {
-		var twoG point
-		twoG.double(&generator)
-		for i := 1; i < len(points); i++ {
-			points[i].add(&points[i-1], &twoG)
-		}
-	}
-	return batchNormalizeGenerator(points)
-}
-
 func newEndomorphismWNAFTable(table *[varWNAFTableSize]affinePoint) [varWNAFTableSize]affinePoint {
 	var out [varWNAFTableSize]affinePoint
-	for i := range table {
-		out[i].y.Set(&table[i].y)
-		out[i].infinity = table[i].infinity
-		out[i].x.Mul(&table[i].x, &endoBeta)
-	}
-	return out
-}
-
-func newGeneratorEndomorphismWNAFTable(table *[generatorWNAFSize]affinePoint) [generatorWNAFSize]affinePoint {
-	var out [generatorWNAFSize]affinePoint
 	for i := range table {
 		out[i].y.Set(&table[i].y)
 		out[i].infinity = table[i].infinity
@@ -105,7 +33,7 @@ func newVerifyCombTable(p *point) [verifyCombTableSize]affinePoint {
 	for i := 1; i < len(bases); i++ {
 		bases[i].set(&bases[i-1])
 		for range verifyCombRows {
-			bases[i].double(&bases[i])
+			bases[i].doubleVartime(&bases[i])
 		}
 	}
 
@@ -116,7 +44,7 @@ func newVerifyCombTable(p *point) [verifyCombTableSize]affinePoint {
 		if previous == 0 {
 			projective[digit-1].set(&bases[bit])
 		} else {
-			projective[digit-1].add(&projective[previous-1], &bases[bit])
+			projective[digit-1].addVartime(&projective[previous-1], &bases[bit])
 		}
 	}
 
@@ -124,21 +52,6 @@ func newVerifyCombTable(p *point) [verifyCombTableSize]affinePoint {
 	var table [verifyCombTableSize]affinePoint
 	table[0].infinity = 1
 	copy(table[1:], normalized[:])
-	return table
-}
-
-func loadGeneratorAffineTableW5(words *[baseWindows][baseTableSize][8]uint64) [baseWindows][baseTableSize]affinePoint {
-	var table [baseWindows][baseTableSize]affinePoint
-	for i := range table {
-		for j := range table[i] {
-			table[i][j].x.SetMontgomeryWords([4]uint64{
-				words[i][j][0], words[i][j][1], words[i][j][2], words[i][j][3],
-			})
-			table[i][j].y.SetMontgomeryWords([4]uint64{
-				words[i][j][4], words[i][j][5], words[i][j][6], words[i][j][7],
-			})
-		}
-	}
 	return table
 }
 
@@ -170,132 +83,4 @@ func loadGeneratorCombTable(words *[verifyCombTableSize - 1][8]uint64) [verifyCo
 		})
 	}
 	return table
-}
-
-func batchNormalize(points [varWNAFTableSize]point) [varWNAFTableSize]affinePoint {
-	var prefixes [varWNAFTableSize]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-
-	var accInv field.Element
-	accInv.Inv(&acc)
-
-	var out [varWNAFTableSize]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
-}
-
-func batchNormalizeGenerator(points [generatorWNAFSize]point) [generatorWNAFSize]affinePoint {
-	var prefixes [generatorWNAFSize]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-
-	var accInv field.Element
-	accInv.Inv(&acc)
-
-	var out [generatorWNAFSize]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
-}
-
-func batchNormalize15(points [15]point) [15]affinePoint {
-	var prefixes [15]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-
-	var accInv field.Element
-	accInv.Inv(&acc)
-
-	var out [15]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
-}
-
-func batchNormalize16(points [16]point) [16]affinePoint {
-	var prefixes [16]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-
-	var accInv field.Element
-	accInv.Inv(&acc)
-
-	var out [16]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
-}
-
-func batchNormalizeVerifyComb(points [verifyCombTableSize - 1]point) [verifyCombTableSize - 1]affinePoint {
-	var prefixes [verifyCombTableSize - 1]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-
-	var accInv field.Element
-	accInv.Inv(&acc)
-
-	var out [verifyCombTableSize - 1]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
 }

@@ -86,40 +86,17 @@ func newGeneratorAffineTableW6ForTest() [baseWindowsW6][baseTableSizeW6]affinePo
 		var points [baseTableSizeW6]point
 		points[0].set(&base)
 		for j := 1; j < len(points); j++ {
-			points[j].add(&points[j-1], &base)
+			points[j].addVartime(&points[j-1], &base)
 		}
 		affine := batchNormalize32ForTest(points)
 		for j := range table[i] {
 			table[i][j] = affine[j]
 		}
 		for range baseWindowW6 {
-			base.double(&base)
+			base.doubleVartime(&base)
 		}
 	}
 	return table
-}
-
-func batchNormalize32ForTest(points [32]point) [32]affinePoint {
-	var prefixes [32]field.Element
-	var acc field.Element
-	acc.SetOne()
-	for i := range points {
-		prefixes[i].Set(&acc)
-		acc.Mul(&acc, &points[i].z)
-	}
-	var accInv field.Element
-	accInv.Inv(&acc)
-	var out [32]affinePoint
-	for i := len(points) - 1; i >= 0; i-- {
-		var zInv, z2, z3 field.Element
-		zInv.Mul(&accInv, &prefixes[i])
-		accInv.Mul(&accInv, &points[i].z)
-		z2.Square(&zInv)
-		z3.Mul(&z2, &zInv)
-		out[i].x.Mul(&points[i].x, &z2)
-		out[i].y.Mul(&points[i].y, &z3)
-	}
-	return out
 }
 
 func scalarBaseMultProjectiveW6ForTest(k *scalar.Element, table *[baseWindowsW6][baseTableSizeW6]affinePoint) projectivePoint {

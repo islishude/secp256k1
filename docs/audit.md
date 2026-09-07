@@ -152,3 +152,42 @@ absence.
 - [ ] All findings are resolved or explicitly accepted with rationale.
 - [ ] The reviewer approves the audited backend for the proposed deployment
   status. Default enablement requires a separate, explicit change after sign-off.
+
+## Review-fix follow-up (2026-09-08)
+
+- Field Sqrt now supports receiver/input aliasing and leaves the receiver unchanged
+  on failure. Tests cover squares and non-residues in both arrangements.
+- Signing groups controllable scalar copies per nonce attempt and clears them on
+  success and rejection. RFC6979 clears HMAC workspaces and constructor state;
+  partial entropy-read buffers are cleared on error. Non-inlined cleanup boundaries
+  retain best-effort zero stores; this does not guarantee erasure of all Go copies.
+- `cmd/checkct` type-checks selected production source and follows repository
+  function references transitively from signing, key derivation, and key parsing.
+  It rejects reachable Vartime functions and unresolved indirect calls, including
+  interface dispatch. Use `go run ./cmd/checkct -tags=secp256k1_asm` for a tagged
+  backend. External libraries, assembly bodies, and ordinary data-dependent
+  branches still require separate review; this guard is not a timing proof.
+- The public key's lightweight shared handle may have no tables until verification.
+  Table contents are immutable, and promotion atomically replaces the published
+  representation. Audit concurrent initialization, promotion, and old-reader life.
+- Arithmetic tool images are pinned in `internal/gentool/tool.go`. The normalizer
+  generator emits both production and reference variants from one template.
+
+The existing independent assembly reviewer sign-off remains outstanding. These
+fixes do not enable either assembly backend by default.
+
+Validation completed locally for these fixes:
+
+- Default and opt-in ARM64 full race suites, cross-library tests in `benchmark`
+  under both backends, `go vet`, and golangci-lint.
+- Ten-second sign/verify/recovery fuzzing and ten-second tagged field fuzzing,
+  including aliased square roots and non-residues; both timing smoke tests.
+- Default and tagged call-graph guards, Linux AMD64/386 cross-builds, and AMD64
+  v1/v3 source/portable-disassembly audits. Cleanup zero stores were inspected in
+  ARM64 and cross-compiled AMD64 binaries.
+- Pinned-image fiat/addchain regeneration matched the existing arithmetic, and
+  full code/assembly regeneration reproduced 15 tracked-output checksums including
+  the newly generated normalizer files.
+- Native AMD64 execution, GNU disassembly checks, and the controlled AMD64 paired
+  release-performance gate still require an appropriate runner. Local timing
+  results and their allocation tradeoffs are recorded in `performance.md`.

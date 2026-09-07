@@ -8,7 +8,8 @@ import (
 )
 
 // PublicKey is a secp256k1 verification key represented by an affine curve
-// point.
+// point. Values may be copied and used concurrently; copies share verification
+// caches, which are allocated only when needed.
 type PublicKey struct {
 	x           field.Element
 	y           field.Element
@@ -16,13 +17,42 @@ type PublicKey struct {
 	valid       bool
 }
 
-// publicKeyPrecompute stores variable-time verification tables for public input.
+// publicKeyPrecompute is a small shared handle. PublicKey copies share lazy,
+// immutable verification tables; parsing and encoding do not build them.
 type publicKeyPrecompute struct {
-	wnafTable     [varWNAFTableSize]affinePoint
-	endoWNAFTable [varWNAFTableSize]affinePoint
-	verifyUses    atomic.Uint32
-	combOnce      sync.Once
-	combTable     *[verifyCombTableSize]affinePoint
+	initialOnce sync.Once
+	table       atomic.Pointer[publicKeyTable]
+	verifyUses  atomic.Uint32
+	promoting   atomic.Bool
+}
+
+// The two algorithms use the same storage layout. Publishing a new immutable
+// table lets in-flight wNAF readers finish while the old allocation is reclaimed.
+type publicKeyTable struct {
+	points [max(verifyCombTableSize, 2*varWNAFTableSize)]affinePoint
+	comb   bool
+}
+
+func (t *publicKeyTable) wnafTables() (*[varWNAFTableSize]affinePoint, *[varWNAFTableSize]affinePoint) {
+	return (*[varWNAFTableSize]affinePoint)(t.points[:varWNAFTableSize]),
+		(*[varWNAFTableSize]affinePoint)(t.points[varWNAFTableSize : 2*varWNAFTableSize])
+}
+
+// verificationTable initializes wNAF once, on the first valid-scalar verification.
+func (p PublicKey) verificationTable() *publicKeyTable {
+	if table := p.precomputed.table.Load(); table != nil {
+		return table
+	}
+	p.precomputed.initialOnce.Do(func() {
+		var q point
+		q.setAffine(&p.x, &p.y)
+		table := new(publicKeyTable)
+		wnaf, endo := table.wnafTables()
+		*wnaf = newAffineOddTable(&q)
+		*endo = newEndomorphismWNAFTable(wnaf)
+		p.precomputed.table.Store(table)
+	})
+	return p.precomputed.table.Load()
 }
 
 // ParsePublicKey parses a SEC 1 compressed or uncompressed public key.
@@ -88,11 +118,12 @@ func (p PublicKey) Equal(q PublicKey) bool {
 }
 
 func (p PublicKey) isValid() bool {
+	// Constructors provide a shared handle, but its expensive tables may be nil.
 	return p.valid && p.precomputed != nil
 }
 
 func publicKeyFromPoint(p *point) (PublicKey, bool) {
-	x, y, ok := p.affine()
+	x, y, ok := p.affineVartime()
 	if !ok {
 		return PublicKey{}, false
 	}
@@ -100,16 +131,5 @@ func publicKeyFromPoint(p *point) (PublicKey, bool) {
 }
 
 func newPublicKey(x, y *field.Element) PublicKey {
-	var p point
-	p.setAffine(x, y)
-	wnafTable := newAffineOddTable(&p)
-	return PublicKey{
-		x: *x,
-		y: *y,
-		precomputed: &publicKeyPrecompute{
-			wnafTable:     wnafTable,
-			endoWNAFTable: newEndomorphismWNAFTable(&wnafTable),
-		},
-		valid: true,
-	}
+	return PublicKey{x: *x, y: *y, precomputed: new(publicKeyPrecompute), valid: true}
 }

@@ -61,8 +61,8 @@ func TestDoubleScalarWordsMatchesLegacy(t *testing.T) {
 		k2.SetWordsModOrder(k2Words)
 		got := doubleScalarBaseMultPrecomputedVartime(&k1, &k2, &table, &endoTable)
 		want := doubleScalarBaseMultPrecomputedLegacyVartime(&k1, &k2, &table, &endoTable)
-		gotX, gotY, gotOK := got.affine()
-		wantX, wantY, wantOK := want.affine()
+		gotX, gotY, gotOK := got.affineVartime()
+		wantX, wantY, wantOK := want.affineVartime()
 		if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
 			t.Fatalf("double-scalar mismatch for %x/%x", k1.Bytes(), k2.Bytes())
 		}
@@ -91,8 +91,8 @@ func TestDoubleScalarCombMatchesWNAF(t *testing.T) {
 		k2.SetWordsModOrder(k2Words)
 		got := doubleScalarBaseMultCombVartime(&k1, &k2, &combTable)
 		want := doubleScalarBaseMultPrecomputedVartime(&k1, &k2, &wnafTable, &endoTable)
-		gotX, gotY, gotOK := got.affine()
-		wantX, wantY, wantOK := want.affine()
+		gotX, gotY, gotOK := got.affineVartime()
+		wantX, wantY, wantOK := want.affineVartime()
 		if gotOK != wantOK || gotOK && (!gotX.Equal(&wantX) || !gotY.Equal(&wantY)) {
 			t.Fatalf("comb mismatch for %x/%x", k1.Bytes(), k2.Bytes())
 		}

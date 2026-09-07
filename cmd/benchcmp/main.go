@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"slices"
 	"strconv"
@@ -52,9 +53,9 @@ func main() {
 		oldMedian := median(baseline[name].nsPerOp)
 		newMedian := median(candidate[name].nsPerOp)
 		delta := (newMedian/oldMedian - 1) * 100
-		fmt.Printf("%-52s %12.2f %12.2f %+8.2f%% %10.0f %11.0f\n",
+		fmt.Printf("%-52s %12.2f %12.2f %+8.2f%% %10s %11s\n",
 			name, oldMedian, newMedian, delta,
-			median(candidate[name].bytesPerOp), median(candidate[name].allocsPerOp),
+			metricSummary(candidate[name].bytesPerOp), metricSummary(candidate[name].allocsPerOp),
 		)
 	}
 	if *gate == "final-paired" {
@@ -86,8 +87,39 @@ func parseBenchmarks(r io.Reader) (map[string]*samples, error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		fields := strings.Fields(scanner.Text())
-		if len(fields) < 4 || !strings.HasPrefix(fields[0], "Benchmark") {
+		if len(fields) == 0 || !strings.HasPrefix(fields[0], "Benchmark") {
 			continue
+		}
+		if len(fields) == 1 {
+			continue // Go may print a benchmark heading before its result.
+		}
+		if len(fields) < 4 {
+			return nil, fmt.Errorf("incomplete benchmark record %q", scanner.Text())
+		}
+		iterations, err := strconv.ParseUint(fields[1], 10, 64)
+		if err != nil || iterations == 0 || len(fields)%2 != 0 {
+			return nil, fmt.Errorf("invalid benchmark record %q", scanner.Text())
+		}
+		// Keep every metric attached to its row. Missing metrics remain unknown,
+		// so a report can display them but an acceptance gate cannot accept them.
+		values := map[string]float64{}
+		for i := 2; i < len(fields); i += 2 {
+			unit := fields[i+1]
+			if unit != "ns/op" && unit != "B/op" && unit != "allocs/op" {
+				continue
+			}
+			if _, exists := values[unit]; exists {
+				return nil, fmt.Errorf("duplicate %s metric", unit)
+			}
+			value, err := strconv.ParseFloat(fields[i], 64)
+			if err != nil || !validMetric(value, unit == "ns/op") {
+				return nil, fmt.Errorf("invalid %s value %q", unit, fields[i])
+			}
+			values[unit] = value
+		}
+		ns, ok := values["ns/op"]
+		if !ok {
+			return nil, fmt.Errorf("benchmark %s is missing ns/op", fields[0])
 		}
 		name := canonicalBenchmarkName(fields[0])
 		result := results[name]
@@ -95,21 +127,11 @@ func parseBenchmarks(r io.Reader) (map[string]*samples, error) {
 			result = new(samples)
 			results[name] = result
 		}
-		for i := 2; i < len(fields); i++ {
-			var dst *[]float64
-			switch fields[i] {
-			case "ns/op":
-				dst = &result.nsPerOp
-			case "B/op":
-				dst = &result.bytesPerOp
-			case "allocs/op":
-				dst = &result.allocsPerOp
-			default:
-				continue
-			}
-			value, err := strconv.ParseFloat(fields[i-1], 64)
-			if err != nil {
-				return nil, fmt.Errorf("invalid %s value %q", fields[i], fields[i-1])
+		result.nsPerOp = append(result.nsPerOp, ns)
+		for unit, dst := range map[string]*[]float64{"B/op": &result.bytesPerOp, "allocs/op": &result.allocsPerOp} {
+			value, ok := values[unit]
+			if !ok {
+				value = math.NaN()
 			}
 			*dst = append(*dst, value)
 		}
@@ -118,6 +140,25 @@ func parseBenchmarks(r io.Reader) (map[string]*samples, error) {
 		return nil, err
 	}
 	return results, nil
+}
+
+func validMetric(value float64, positive bool) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0 && (!positive || value > 0)
+}
+
+func validateSamples(name string, s *samples, minimum int) error {
+	if s == nil || len(s.nsPerOp) < minimum {
+		return fmt.Errorf("required benchmark %s needs at least %d samples", name, minimum)
+	}
+	if len(s.bytesPerOp) != len(s.nsPerOp) || len(s.allocsPerOp) != len(s.nsPerOp) {
+		return fmt.Errorf("required benchmark %s has incomplete metrics", name)
+	}
+	for i, ns := range s.nsPerOp {
+		if !validMetric(ns, true) || !validMetric(s.bytesPerOp[i], false) || !validMetric(s.allocsPerOp[i], false) {
+			return fmt.Errorf("required benchmark %s has invalid or missing metrics in sample %d", name, i+1)
+		}
+	}
+	return nil
 }
 
 func checkGate(gate string, baseline, candidate map[string]*samples) error {
@@ -245,8 +286,11 @@ func printPairedFinalSummary(baseline, candidate map[string]*samples) error {
 func pairedMedianDelta(name string, baseline, candidate map[string]*samples) (float64, error) {
 	old := baseline[name]
 	next := candidate[name]
-	if old == nil || next == nil || len(old.nsPerOp) == 0 || len(next.nsPerOp) == 0 {
-		return 0, fmt.Errorf("required benchmark %s is missing", name)
+	if err := validateSamples(name, old, 10); err != nil {
+		return 0, err
+	}
+	if err := validateSamples(name, next, 10); err != nil {
+		return 0, err
 	}
 	if len(old.nsPerOp) != len(next.nsPerOp) {
 		return 0, fmt.Errorf("required benchmark %s has %d baseline samples and %d candidate samples", name, len(old.nsPerOp), len(next.nsPerOp))
@@ -257,11 +301,17 @@ func pairedMedianDelta(name string, baseline, candidate map[string]*samples) (fl
 			return 0, fmt.Errorf("required benchmark %s has a zero baseline sample", name)
 		}
 		deltas[i] = (next.nsPerOp[i]/old.nsPerOp[i] - 1) * 100
+		if math.IsNaN(deltas[i]) || math.IsInf(deltas[i], 0) {
+			return 0, fmt.Errorf("benchmark %s delta overflow", name)
+		}
 	}
 	return median(deltas), nil
 }
 
 func allZero(values []float64) bool {
+	if len(values) == 0 {
+		return false
+	}
 	for _, value := range values {
 		if value != 0 {
 			return false
@@ -296,8 +346,11 @@ func checkKernelGate(baseline, candidate map[string]*samples) error {
 func commonMedians(name string, baseline, candidate map[string]*samples) (float64, float64, error) {
 	old := baseline[name]
 	next := candidate[name]
-	if old == nil || next == nil || len(old.nsPerOp) == 0 || len(next.nsPerOp) == 0 {
-		return 0, 0, fmt.Errorf("required benchmark %s is missing", name)
+	if err := validateSamples(name, old, 1); err != nil {
+		return 0, 0, err
+	}
+	if err := validateSamples(name, next, 1); err != nil {
+		return 0, 0, err
 	}
 	return median(old.nsPerOp), median(next.nsPerOp), nil
 }
@@ -325,5 +378,17 @@ func median(values []float64) float64 {
 	if len(values)%2 == 1 {
 		return values[middle]
 	}
-	return (values[middle-1] + values[middle]) / 2
+	return values[middle-1]/2 + values[middle]/2
+}
+
+func metricSummary(values []float64) string {
+	if len(values) == 0 {
+		return "missing"
+	}
+	for _, value := range values {
+		if !validMetric(value, false) {
+			return "missing"
+		}
+	}
+	return fmt.Sprintf("%.0f", median(values))
 }

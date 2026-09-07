@@ -15,9 +15,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/islishude/secp256k1/internal/gentool"
 )
 
-const defaultToolImage = "ghcr.io/islishude/fiat-crypto-go-tool"
+const defaultToolImage = gentool.Image
 
 var curves = []struct {
 	dir     string

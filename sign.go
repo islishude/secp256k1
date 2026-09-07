@@ -1,6 +1,10 @@
 package secp256k1
 
-import "github.com/islishude/secp256k1/internal/scalar"
+import (
+	"runtime"
+
+	"github.com/islishude/secp256k1/internal/scalar"
+)
 
 // SignDigest signs a message digest with deterministic RFC6979 ECDSA.
 //
@@ -30,68 +34,75 @@ func (k *PrivateKey) signDigest(digest Digest, recoverable bool) (RecoverableSig
 
 	privBytes := k.d.Bytes()
 	nonce := newNonceRFC6979(&privBytes, &digest)
-
+	clearSecretBytes(privBytes[:])
+	defer nonce.Destroy()
 	var e scalar.Element
 	e.SetBytesModOrder(&digest)
-
 	for {
 		kBytes := nonce.Next()
-		var nonceScalar scalar.Element
-		nonceScalar.SetBytesUnchecked(&kBytes)
-
-		rx, ry, ok := scalarBaseMultAffine(&nonceScalar)
-		if !ok {
-			nonce.Reject()
-			continue
+		sig, ok := k.signWithNonce(&e, &kBytes, recoverable)
+		if ok {
+			return sig, nil
 		}
-		// ECDSA defines r as x(R) mod n. Recovery needs to know whether the
-		// original field x-coordinate was r or r+n, so keep that overflow bit.
-		xOverflow := byte(0)
-		rxWords := rx.NonMontgomeryWords()
-		if recoverable && !scalar.LessThanOrderWords(rxWords) {
-			xOverflow = 1
-		}
-
-		var r, rd, sum, kinv, s scalar.Element
-		r.SetWordsModOrder(rxWords)
-		if r.IsZero() {
-			nonce.Reject()
-			continue
-		}
-
-		rd.Mul(&r, &k.d)
-		sum.Add(&e, &rd)
-		kinv.Inv(&nonceScalar)
-		s.Mul(&kinv, &sum)
-		if s.IsZero() {
-			nonce.Reject()
-			continue
-		}
-
-		// The recovery id encodes the y parity and the x-coordinate overflow.
-		recid := byte(0)
-		if recoverable {
-			if ry.IsOdd() {
-				recid |= 1
-			}
-			recid |= xOverflow << 1
-		}
-		// Low-S normalization replaces s with n-s. That is equivalent to
-		// using -R, so the y-parity bit must be flipped for recovery.
-		highS := s.IsHighChoice()
-		var negS scalar.Element
-		negS.Neg(&s)
-		s.Select(&s, &negS, highS)
-		if recoverable {
-			recid ^= byte(highS)
-		}
-
-		var sig RecoverableSignature
-		r.PutBytes((*[scalar.Size]byte)(sig[:scalar.Size]))
-		s.PutBytes((*[scalar.Size]byte)(sig[scalar.Size : 2*scalar.Size]))
-		sig[recoverableSignatureRecIDAt] = recid
-		clear(privBytes[:])
-		nonce.Destroy()
-		return sig, nil
+		nonce.Reject()
 	}
+}
+
+// signingScalars groups the controllable scalar copies for one nonce attempt.
+// Cleanup runs on both successful and rejected attempts.
+type signingScalars struct {
+	nonce, r, rd, sum, kinv, s, negS scalar.Element
+}
+
+//go:noinline
+func (s *signingScalars) destroy() {
+	*s = signingScalars{}
+	runtime.KeepAlive(s)
+}
+
+func (k *PrivateKey) signWithNonce(e *scalar.Element, kBytes *[scalar.Size]byte, recoverable bool) (RecoverableSignature, bool) {
+	defer clearSecretBytes(kBytes[:])
+	var v signingScalars
+	defer v.destroy()
+	v.nonce.SetBytesUnchecked(kBytes)
+	rx, ry, ok := scalarBaseMultAffine(&v.nonce)
+	if !ok {
+		return RecoverableSignature{}, false
+	}
+	// ECDSA r is x(R) mod n. The recovery id retains x's overflow bit.
+	rxWords := rx.NonMontgomeryWords()
+	xOverflow := byte(0)
+	if recoverable && !scalar.LessThanOrderWords(rxWords) {
+		xOverflow = 1
+	}
+	v.r.SetWordsModOrder(rxWords)
+	if v.r.IsZero() {
+		return RecoverableSignature{}, false
+	}
+	v.rd.Mul(&v.r, &k.d)
+	v.sum.Add(e, &v.rd)
+	v.kinv.Inv(&v.nonce)
+	v.s.Mul(&v.kinv, &v.sum)
+	if v.s.IsZero() {
+		return RecoverableSignature{}, false
+	}
+	recid := byte(0)
+	if recoverable {
+		if ry.IsOdd() {
+			recid = 1
+		}
+		recid |= xOverflow << 1
+	}
+	// Negating s is equivalent to negating R; flip recovery parity as well.
+	highS := v.s.IsHighChoice()
+	v.negS.Neg(&v.s)
+	v.s.Select(&v.s, &v.negS, highS)
+	if recoverable {
+		recid ^= byte(highS)
+	}
+	var sig RecoverableSignature
+	v.r.PutBytes((*[scalar.Size]byte)(sig[:scalar.Size]))
+	v.s.PutBytes((*[scalar.Size]byte)(sig[scalar.Size : 2*scalar.Size]))
+	sig[recoverableSignatureRecIDAt] = recid
+	return sig, true
 }

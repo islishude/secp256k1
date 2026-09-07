@@ -13,9 +13,11 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/islishude/secp256k1/internal/gentool"
 )
 
-const defaultToolImage = "ghcr.io/islishude/fiat-crypto-go-tool"
+const defaultToolImage = gentool.Image
 
 type target struct {
 	Package  string

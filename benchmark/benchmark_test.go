@@ -185,6 +185,11 @@ func BenchmarkLocalVerify(b *testing.B) {
 	digest := benchFixture.digest
 	signature := benchFixture.localSignature
 
+	for range 16 {
+		if !localsecp256k1.VerifyDigest(publicKey, digest, signature) {
+			b.Fatal("warmup verification failed")
+		}
+	}
 	for b.Loop() {
 		verifySink = localsecp256k1.VerifyDigest(publicKey, digest, signature)
 	}

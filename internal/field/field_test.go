@@ -323,3 +323,39 @@ func fromHex(s string) [Size]byte {
 	n.FillBytes(out[:])
 	return out
 }
+
+func TestSqrtAliasingAndNonResidues(t *testing.T) {
+	for _, value := range []uint64{0, 1, 2, 4, 9, 16, 12345} {
+		var x Element
+		x.SetUint64(value)
+		checkSqrtAliasing(t, x)
+	}
+	var one, minusOne Element
+	one.SetOne()
+	minusOne.Neg(&one)
+	checkSqrtAliasing(t, minusOne)
+}
+
+func checkSqrtAliasing(t *testing.T, x Element) {
+	t.Helper()
+	xb := x.Bytes()
+	want := new(big.Int).ModSqrt(new(big.Int).SetBytes(xb[:]), modulusBig) != nil
+	var separate Element
+	separate.SetUint64(42)
+	original := separate
+	got := separate.Sqrt(&x)
+	alias := x
+	aliasOK := alias.Sqrt(&alias)
+	if got != want || aliasOK != want {
+		t.Fatalf("Sqrt(%x): separate=%v alias=%v want=%v", xb, got, aliasOK, want)
+	}
+	if want {
+		var square Element
+		square.Square(&alias)
+		if !square.Equal(&x) || !alias.Equal(&separate) {
+			t.Fatal("incorrect square root")
+		}
+	} else if !separate.Equal(&original) || !alias.Equal(&x) {
+		t.Fatal("failed Sqrt changed receiver")
+	}
+}

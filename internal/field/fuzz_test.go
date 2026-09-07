@@ -36,6 +36,7 @@ func FuzzElementArithmetic(f *testing.F) {
 		if !x.SetBytes(&xBytes) || !y.SetBytes(&yBytes) {
 			t.Fatal("reduced field element did not parse")
 		}
+		checkSqrtAliasing(t, x)
 		bx := new(big.Int).SetBytes(xBytes[:])
 		by := new(big.Int).SetBytes(yBytes[:])
 

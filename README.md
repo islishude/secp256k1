@@ -91,13 +91,13 @@ func main() {
 | `ParsePrivateKey([]byte)` | Parses a 32-byte big-endian private key and rejects zero or values greater than or equal to the group order. |
 | `(*PrivateKey).Bytes()` | Returns the 32-byte private key encoding or `ErrInvalidPrivateKey`. |
 | `(*PrivateKey).Destroy()` | Performs best-effort cleanup of private scalar material and invalidates the key. |
-| `(*PrivateKey).PublicKey()` | Derives the public key and prepares it for verification. |
+| `(*PrivateKey).PublicKey()` | Derives the public key; verification tables are built lazily. |
 | `(*PrivateKey).SignDigest(Digest)` | Creates an RFC6979 deterministic low-S `Signature`. |
 | `(*PrivateKey).SignRecoverableDigest(Digest)` | Creates an RFC6979 deterministic low-S `RecoverableSignature`. |
 | `VerifyDigest(pub, digest, sig)` | Verifies a signature and accepts mathematically valid high-S values using public-input variable-time code. |
 | `VerifyCanonicalDigest(pub, digest, sig)` | Verifies a signature and rejects high-S values using public-input variable-time code. |
 | `RecoverDigest(digest, recoverableSig)` | Recovers the public key from a recoverable signature. |
-| `ParsePublicKey([]byte)` | Parses a SEC 1 compressed or uncompressed public key and prepares it for verification. |
+| `ParsePublicKey([]byte)` | Parses a SEC 1 public key; verification tables are built lazily. |
 | `(PublicKey).BytesCompressed()` | Returns the 33-byte compressed public key encoding or `ErrInvalidPublicKey`. |
 | `(PublicKey).BytesUncompressed()` | Returns the 65-byte uncompressed public key encoding or `ErrInvalidPublicKey`. |
 
@@ -196,11 +196,13 @@ Regenerate low-level generated code:
 ```sh
 go generate ./internal/fiat
 go generate ./internal/addchain
+go generate .
 make generate-asm
 make check-asm-module
 ```
 
-Generation uses the Docker image `ghcr.io/islishude/fiat-crypto-go-tool`. See
+Generation uses the immutable multi-platform image digest pinned in
+`internal/gentool/tool.go`. See
 `internal/fiat/README.md` and `internal/addchain/README.md` for details.
 AMD64 assembly generation uses the separately pinned `asm` module, so avo and
 its generator-only dependencies do not enter the root module.
@@ -212,7 +214,11 @@ repository does not claim a third-party security audit. `PrivateKey.Destroy`
 and signing-path cleanup are best-effort only; Go does not guarantee hard memory
 erasure. Signing and public-key derivation are intended to avoid secret-indexed
 table lookups and secret-dependent low-S branching; verification adaptively
-uses public-input variable-time wNAF/GLV and fixed-base comb code. Before using
+uses public-input variable-time wNAF/GLV and fixed-base comb code. Parsing and
+encoding public keys do not build verification tables. PublicKey copies share
+immutable tables safely across concurrent verification calls. Signing clears
+controllable nonce, scalar, and HMAC scratch buffers on completion or rejection;
+compiler, runtime, and register copies can still remain. Before using
 this library for production funds or high-value keys, validate it against your
 audit standards, test vectors, side-channel requirements, and higher-level
 protocol rules.

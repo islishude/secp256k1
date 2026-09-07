@@ -9,7 +9,7 @@ import (
 )
 
 func TestGroupOrder(t *testing.T) {
-	p := scalarMult(&generator, &scalar.Order)
+	p := scalarMultVartime(&generator, &scalar.Order)
 	if !p.isInfinity() {
 		t.Fatal("n*G is not infinity")
 	}
@@ -55,7 +55,7 @@ func TestScalarBaseMultAgainstBig(t *testing.T) {
 			}
 			continue
 		}
-		gotX, gotY, ok := got.affine()
+		gotX, gotY, ok := got.affineVartime()
 		if !ok {
 			t.Fatalf("scalar %x produced infinity", kb)
 		}
@@ -75,13 +75,13 @@ func TestScalarMultiplicationAgainstBig(t *testing.T) {
 		must32("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"),
 	}
 	for _, k := range scalars {
-		got := scalarMult(&generator, &k)
-		gotAffine := scalarMultAffine(&generator, &k)
-		gotX, gotY, ok := got.affine()
+		got := scalarMultVartime(&generator, &k)
+		gotAffine := scalarMultAffineVartime(&generator, &k)
+		gotX, gotY, ok := got.affineVartime()
 		if !ok {
 			t.Fatalf("scalar %x produced infinity", k)
 		}
-		gotAffineX, gotAffineY, ok := gotAffine.affine()
+		gotAffineX, gotAffineY, ok := gotAffine.affineVartime()
 		if !ok {
 			t.Fatalf("affine scalar %x produced infinity", k)
 		}
@@ -99,8 +99,8 @@ func TestScalarMultiplicationAgainstBig(t *testing.T) {
 
 func TestDoubleScalarBaseMult(t *testing.T) {
 	qBytes := must32("2a")
-	q := scalarMultAffine(&generator, &qBytes)
-	qx, qy, ok := q.affine()
+	q := scalarMultAffineVartime(&generator, &qBytes)
+	qx, qy, ok := q.affineVartime()
 	if !ok {
 		t.Fatal("test point is infinity")
 	}
@@ -128,13 +128,13 @@ func TestDoubleScalarBaseMult(t *testing.T) {
 			}
 
 			p1 := scalarBaseMult(&k1)
-			p2 := scalarMultAffine(&q, &k2Bytes)
+			p2 := scalarMultAffineVartime(&q, &k2Bytes)
 			var want point
-			want.add(&p1, &p2)
+			want.addVartime(&p1, &p2)
 			got := doubleScalarBaseMultVartime(&k1, &q, &k2)
 
-			gotX, gotY, gotOK := got.affine()
-			wantX, wantY, wantOK := want.affine()
+			gotX, gotY, gotOK := got.affineVartime()
+			wantX, wantY, wantOK := want.affineVartime()
 			if gotOK != wantOK ||
 				(gotOK && (gotX.Bytes() != wantX.Bytes() || gotY.Bytes() != wantY.Bytes())) {
 				t.Fatalf("double scalar mismatch\nk1=%x\nk2=%x", k1Bytes, k2Bytes)

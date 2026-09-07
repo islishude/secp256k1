@@ -1,6 +1,6 @@
 # Performance and backend status
 
-Last consolidated: 2026-07-15
+Last updated: 2026-09-08
 
 This document is the maintained summary of the repository's performance work.
 Measurements are evidence for the decisions below, not portable performance
@@ -21,10 +21,13 @@ tagged binary falls back to fiat Mul and Square unless both ADX and BMI2 are
 present. The W6 selector only needs baseline AMD64/SSE2.
 
 Verification is allowed to use public-input variable-time algorithms. A public
-key uses its precomputed wNAF/GLV tables for the first eight calls that reach
-double-scalar multiplication, then lazily builds and reuses a width-7 comb
-table. Signing and private-key derivation continue to use fixed-window,
-full-table-scan paths.
+key starts with a small shared cache handle. Its first call reaching
+double-scalar multiplication builds wNAF/GLV tables; after eight such calls, one
+caller builds a width-7 comb table. Concurrent callers continue on the immutable
+wNAF table while promotion runs. Publication replaces the table pointer, allowing
+the old table to be reclaimed after its last reader finishes. Hot verification
+loads the published comb table without incrementing the use counter. Signing and
+private-key derivation continue to use fixed-window, full-table-scan paths.
 
 ## Retained measurements
 
@@ -42,8 +45,9 @@ comb and the signed-W5 fixed-base path.
 | SignRecoverable | 28,619 ns | 24,694 ns | -13.7% |
 
 These changes kept hot verification and signing at zero benchmark-time
-allocations. The per-public-key comb table adds 9,216 bytes only after the ninth
-verification call; keys used at most eight times do not allocate it.
+allocations. These historical measurements used eager wNAF construction and
+retained both representations after promotion. The review fixes described below replace that
+cache layout.
 
 ### ARM64 opt-in path
 
@@ -155,3 +159,67 @@ from Git history:
 | `245020e` | Accepted AMD64 avo backend, v2 rejection, and CI artifacts |
 
 The maintained external-review scope is in [`audit.md`](audit.md).
+
+## Review fixes: cache lifecycle and measurement
+
+`BenchmarkParsePublicKeyOnly` isolates key decoding. `BenchmarkVerifyPublicKeyLifetime`
+includes parsing and 1, 8, 9, 16, or 32 verifications, including the switch cost.
+`BenchmarkVerifyConcurrentPromotion` measures eight concurrent callers at the
+switch, and `BenchmarkVerifyHotPublicKeyParallel` measures shared-key throughput.
+The hot verification benchmarks explicitly warm the cache before starting the
+measurement; lifecycle benchmarks retain all initialization costs.
+
+The threshold remains eight: promotion costs about eight to nine saved wNAF
+operations on the reviewed M3 Max. This is a reuse heuristic, not a guarantee that
+a key used exactly nine times benefits from promotion. The change focuses on
+avoiding unused tables, releasing the old representation, and keeping concurrent
+readers off the promotion lock. No background goroutine is created.
+
+The paired gate requires at least ten matched samples for every required workload.
+Every sample must contain finite positive ns/op and finite nonnegative B/op and
+allocs/op. Missing metrics are shown as missing in reports and rejected by gates.
+Signing and hot verification require zero allocations in every paired sample.
+
+Fixed-size batch normalization implementations are emitted from one algorithm in
+`cmd/genprecomp`. Production variants and test-only variants are generated into
+separate files. Reference scalar multiplication and older fixed-base algorithms
+live in `reference_test.go` and are excluded from production package builds.
+
+### Local before/after measurements
+
+Measured on 2026-09-08, Apple M3 Max, macOS ARM64, Go 1.27.1. Baseline is
+`478ba48`, with the same lifecycle benchmarks and explicit hot-key warmup added
+for comparison. Ten alternating before/after pairs used precompiled test binaries,
+`GOMAXPROCS=1`, and `-test.benchtime=150ms`. Concurrent measurements used five pairs,
+`GOMAXPROCS=4`, and 200 ms. No other test or generation jobs ran during these pairs.
+CPU affinity was not pinned on macOS; these are local diagnostics, not the native
+AMD64 release gate. Percentages below are medians of paired percentage changes.
+
+| Workload | Default delta | ARM64 asm delta |
+| --- | ---: | ---: |
+| ParsePublicKeyOnly | -86.10% | -88.62% |
+| VerifyPublicKeyLifetime/1 | +2.13% | -1.54% |
+| VerifyPublicKeyLifetime/8 | -0.80% | -1.58% |
+| VerifyPublicKeyLifetime/9 | -0.20% | -0.65% |
+| VerifyPublicKeyLifetime/16 | +0.66% | -1.59% |
+| VerifyPublicKeyLifetime/32 | +1.14% | -0.62% |
+| RecoverDigest | -0.59% | -0.83% |
+| VerifyHotPublicKey | +0.29% | -1.08% |
+| VerifyParseCompressedCold | +1.30% | -2.86% |
+| SignRecoverable | +1.32% | -0.88% |
+| PublicKeyDerive | -63.06% | -69.34% |
+| VerifyConcurrentPromotion | -14.74% | -16.74% |
+| VerifyHotPublicKeyParallel | -1.71% | -1.33% |
+
+Every signing and hot-verification sample remained at 0 B/op and 0 allocs/op.
+Parsing/derivation now allocates a 32-byte handle instead of 9,472 bytes.
+First verification adds a 9,472-byte table; promotion allocates a replacement of
+that size and makes the old table eligible for GC after readers finish. Consequently
+cold parse-and-verify/recovery totals 9,504 B/op in two allocations, versus the
+former 9,472 B/op in one. A promoted key retains one representation instead of two.
+
+The large parse/derive improvements and the concurrent-promotion gains are the
+main measured benefits. Small changes around +/-2% remain noise-sensitive; the
+default signing and single-use verification increases are recorded explicitly.
+The promotion threshold remains eight. Large builder workspaces are isolated in
+a non-inlined helper; the hot wrapper's ARM64 stack frame is 240 bytes.

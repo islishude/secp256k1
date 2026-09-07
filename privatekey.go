@@ -23,10 +23,11 @@ func GeneratePrivateKey(reader io.Reader) (*PrivateKey, error) {
 	for {
 		var b [PrivateKeySize]byte
 		if _, err := io.ReadFull(reader, b[:]); err != nil {
+			clearSecretBytes(b[:])
 			return nil, err
 		}
 		key, err := parsePrivateKeyBytes(&b)
-		clear(b[:])
+		clearSecretBytes(b[:])
 		if err == nil {
 			return key, nil
 		}

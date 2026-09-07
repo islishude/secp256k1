@@ -199,13 +199,18 @@ func (z *Element) SquareN(x *Element, n int) *Element {
 	return z
 }
 
-// Sqrt attempts to assign z to a square root of x.
+// Sqrt attempts to assign z to a square root of x, including when z == x.
+// On failure z is unchanged.
 func (z *Element) Sqrt(x *Element) bool {
-	z.sqrtCandidate(x)
-	var check Element
+	var candidate, check Element
+	candidate.sqrtCandidate(x)
 	// Re-square the candidate because non-residues also produce a field value.
-	check.Square(z)
-	return check.Equal(x)
+	check.Square(&candidate)
+	if !check.Equal(x) {
+		return false
+	}
+	z.Set(&candidate)
+	return true
 }
 
 // SetNonMontgomeryWords assigns z = canonical little-endian non-Montgomery words.

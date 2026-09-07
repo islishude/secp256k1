@@ -45,22 +45,35 @@ func (p PublicKey) verifyDigest(digest Digest, sig *[SignatureSize]byte, require
 }
 
 func (p PublicKey) doubleScalarBaseMultVartime(k1, k2 *scalar.Element) point {
-	if p.precomputed.verifyUses.Add(1) <= verifyCombBuildAfter {
-		return doubleScalarBaseMultPrecomputedVartime(
-			k1,
-			k2,
-			&p.precomputed.wnafTable,
-			&p.precomputed.endoWNAFTable,
-		)
+	table := p.precomputed.table.Load()
+	if table == nil {
+		table = p.verificationTable()
 	}
+	if !table.comb && p.precomputed.verifyUses.Add(1) > verifyCombBuildAfter &&
+		p.precomputed.promoting.CompareAndSwap(false, true) {
+		// Only the builder pays the promotion cost. Concurrent callers keep
+		// using the immutable wNAF table until the comb table is published.
+		table = p.buildVerifyCombTable()
+	}
+	if table.comb {
+		return doubleScalarBaseMultCombVartime(k1, k2, (*[verifyCombTableSize]affinePoint)(table.points[:verifyCombTableSize]))
+	}
+	wnaf, endo := table.wnafTables()
+	return doubleScalarBaseMultPrecomputedVartime(k1, k2, wnaf, endo)
+}
 
-	p.precomputed.combOnce.Do(func() {
-		var q point
-		q.setAffine(&p.x, &p.y)
-		table := newVerifyCombTable(&q)
-		p.precomputed.combTable = &table
-	})
-	return doubleScalarBaseMultCombVartime(k1, k2, p.precomputed.combTable)
+// Keep the large precomputation workspace off the hot verification stack.
+//
+//go:noinline
+func (p PublicKey) buildVerifyCombTable() *publicKeyTable {
+	var q point
+	q.setAffine(&p.x, &p.y)
+	next := new(publicKeyTable)
+	comb := newVerifyCombTable(&q)
+	copy(next.points[:], comb[:])
+	next.comb = true
+	p.precomputed.table.Store(next)
+	return next
 }
 
 func jacobianXEqualsScalar(p *point, x *scalar.Element) bool {

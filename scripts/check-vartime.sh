@@ -4,6 +4,8 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${repo_dir}"
 
+go run ./cmd/checkct
+
 if grep -nHE 'Vartime|invVartime' sign.go privatekey.go rfc6979.go; then
   echo 'variable-time function used in a secret path' >&2
   exit 1

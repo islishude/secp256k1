@@ -129,6 +129,7 @@ func BenchmarkVerifyDigest(b *testing.B) {
 		b.Fatal(err)
 	}
 
+	warmPublicKeyBenchmark(b, pub, digest, sig)
 	b.ReportAllocs()
 	b.SetBytes(32)
 	for b.Loop() {
@@ -171,6 +172,7 @@ func BenchmarkRecoverDigest(b *testing.B) {
 
 func BenchmarkVerifyHotPublicKey(b *testing.B) {
 	m := newBenchmarkMaterial(b)
+	warmPublicKeyBenchmark(b, m.publicKey, m.digest, m.signature)
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkVerifyResult = VerifyDigest(m.publicKey, m.digest, m.signature)
@@ -326,13 +328,14 @@ func BenchmarkDoubleScalarBaseMultPrecomputedVartime(b *testing.B) {
 	if !ok {
 		b.Fatal("invalid benchmark signature")
 	}
+	wnaf, endo := m.publicKey.verificationTable().wnafTables()
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkPointSink = doubleScalarBaseMultPrecomputedVartime(
 			&k1,
 			&k2,
-			&m.publicKey.precomputed.wnafTable,
-			&m.publicKey.precomputed.endoWNAFTable,
+			wnaf,
+			endo,
 		)
 	}
 }
@@ -417,16 +420,16 @@ func BenchmarkNewAffineOddTable(b *testing.B) {
 
 func BenchmarkAddAffine(b *testing.B) {
 	var base point
-	base.double(&generator)
+	base.doubleVartime(&generator)
 	b.ReportAllocs()
 	for b.Loop() {
-		benchmarkPointSink.addAffine(&base, &generator.x, &generator.y)
+		benchmarkPointSink.addAffineVartime(&base, &generator.x, &generator.y)
 	}
 }
 
 func BenchmarkAddAffineWNAFVartime(b *testing.B) {
 	var base point
-	base.double(&generator)
+	base.doubleVartime(&generator)
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkPointSink.addAffineWNAFVartime(&base, &generator.x, &generator.y)
@@ -448,16 +451,16 @@ func BenchmarkAddCompleteMixedGo(b *testing.B) {
 
 func BenchmarkPointDouble(b *testing.B) {
 	base := generator
-	base.double(&base)
+	base.doubleVartime(&base)
 	b.ReportAllocs()
 	for b.Loop() {
-		benchmarkPointSink.double(&base)
+		benchmarkPointSink.doubleVartime(&base)
 	}
 }
 
 func BenchmarkPointDoubleSquare(b *testing.B) {
 	base := generator
-	base.double(&base)
+	base.doubleVartime(&base)
 	b.ReportAllocs()
 	for b.Loop() {
 		benchmarkPointSink.doubleSquare(&base)
@@ -490,5 +493,14 @@ func BenchmarkGeneratorPrecomputeStaticLoad(b *testing.B) {
 		wnaf, endo := loadGeneratorWNAFTables(&generatorWNAFTableWords, &generatorEndoWNAFXWords)
 		benchmarkGeneratorWNAFTableSink = wnaf
 		benchmarkGeneratorWNAFTableSink = endo
+	}
+}
+
+func warmPublicKeyBenchmark(b *testing.B, pub PublicKey, digest Digest, sig Signature) {
+	b.Helper()
+	for range verifyCombBuildAfter + 1 {
+		if !VerifyDigest(pub, digest, sig) {
+			b.Fatal("warmup verification failed")
+		}
 	}
 }
